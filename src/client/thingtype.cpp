@@ -34,6 +34,7 @@
 #include "framework/graphics/image.h"
 #include "framework/otml/otmlnode.h"
 #include <framework/core/graphicalapplication.h>
+#include <unordered_set>
 
 const static TexturePtr m_textureNull;
 
@@ -902,6 +903,11 @@ Size ThingType::getBestTextureDimension(int w, int h, const int count)
 
 uint32_t ThingType::getSpriteIndex(const int w, const int h, const int l, const int x, const int y, const int z, const int a) const
 {
+    if (m_spritesIndex.empty()) {
+        g_logger.error("Thing {} ({}, {}) has no sprites to resolve index", m_name, m_id, categoryName(m_category));
+        return 0;
+    }
+
     uint32_t index = ((((((a % m_animationPhases)
                       * m_numPatternZ + z)
                       * m_numPatternY + y)
@@ -918,7 +924,21 @@ uint32_t ThingType::getSpriteIndex(const int w, const int h, const int l, const 
             * m_layers + l;
     }
 
-    assert(index < m_spritesIndex.size());
+    if (index >= m_spritesIndex.size()) {
+        static std::unordered_set<uint64_t> warnedThings;
+        const uint64_t thingKey = (static_cast<uint64_t>(m_category) << 32) | m_id;
+        if (warnedThings.find(thingKey) == warnedThings.end()) {
+            warnedThings.insert(thingKey);
+            g_logger.error("Thing {} ({}, {}) computed invalid sprite index {} (size {}, params w={}, h={}, l={}, x={}, y={}, z={}, a={}; dims {}x{}, layers {}, patterns {}x{}x{}, phases {})",
+                m_name, m_id, categoryName(m_category), index, m_spritesIndex.size(),
+                w, h, l, x, y, z, a,
+                m_size.width(), m_size.height(), m_layers,
+                m_numPatternX, m_numPatternY, m_numPatternZ, m_animationPhases);
+        }
+
+        index = index % m_spritesIndex.size();
+    }
+
     return index;
 }
 
