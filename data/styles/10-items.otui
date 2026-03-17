@@ -36,6 +36,19 @@ Item < UIItem
     focusable: false
     visible: false
     image-smooth: true
+
+  UIWidget
+    id: upgrade
+    size: 9 8
+    image-source: /images/inventory/upgrade-strip
+    image-clip: 0 0 9 8
+    image-size: 9 8
+    anchors.top: parent.top
+    anchors.left: parent.left
+    phantom: true
+    focusable: false
+    visible: false
+    image-smooth: true
     
 MainInventoryItem < UIWidget
   image-source: /images/inventory/containerslot
@@ -243,6 +256,19 @@ MainInventoryItem < UIWidget
       image-size: 10 9
       anchors.top: parent.top
       anchors.right: parent.right
+      phantom: true
+      focusable: false
+      visible: false
+      image-smooth: true
+
+    UIWidget
+      id: upgrade
+      size: 9 8
+      image-source: /images/inventory/upgrade-strip
+      image-clip: 0 0 9 8
+      image-size: 9 8
+      anchors.top: parent.top
+      anchors.left: parent.left
       phantom: true
       focusable: false
       visible: false

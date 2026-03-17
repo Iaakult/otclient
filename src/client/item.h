@@ -89,6 +89,7 @@ public:
     void setDurationTime(const uint32_t durationTime) { m_durationTime = durationTime; }
     void setCharges(const uint32_t charges) { m_charges = charges; }
     void setTier(const uint8_t tier) { m_tier = tier; }
+    void setUpgradeLevel(const uint8_t level) { m_upgradeLevel = level; }
 
     int getCountOrSubType() { return m_countOrSubType; }
     int getSubType();
@@ -97,6 +98,7 @@ public:
     uint32_t getDurationTime() { return m_durationTime; }
     uint32_t getCharges() { return m_charges; }
     uint8_t getTier() { return m_tier; }
+    uint8_t getUpgradeLevel() { return m_upgradeLevel; }
 
     bool isValid() { return getThingType() != nullptr; }
 
@@ -169,6 +171,7 @@ private:
     uint32_t m_durationTime{ 0 };
     uint32_t m_charges{ 0 };
     uint8_t m_tier{ 0 };
+    uint8_t m_upgradeLevel{ 0 };
     uint8_t m_phase{ 0 };
 
     Color m_color{ Color::white };

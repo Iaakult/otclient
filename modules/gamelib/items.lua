@@ -158,6 +158,7 @@ function ItemsDatabase.setTier(widget, item, isSmall)
     local tier = type(item) == "number" and item or (item and item:getTier()) or 0
     if tier <= 0 then
         widget.tier:setVisible(false)
+        ItemsDatabase.setUpgrade(widget, item, isSmall)
         return
     end
     local config
@@ -192,6 +193,59 @@ function ItemsDatabase.setTier(widget, item, isSmall)
     widget.tier:setImageSource(config.source)
     widget.tier:setImageSize(config.size)
     widget.tier:setVisible(true)
+
+    ItemsDatabase.setUpgrade(widget, item, isSmall)
+end
+
+function ItemsDatabase.setUpgrade(widget, item, isSmall)
+    if not g_game.getFeature(GameThingUpgradeClassification) or not widget or not widget.upgrade then
+        return
+    end
+    if isSmall == nil then
+        isSmall = true
+    end
+
+    local upgradeLevel = 0
+    if type(item) ~= "number" and item and item.getUpgradeLevel then
+        upgradeLevel = item:getUpgradeLevel() or 0
+    end
+
+    if upgradeLevel <= 0 then
+        widget.upgrade:setVisible(false)
+        return
+    end
+
+    local config
+    if isSmall then
+        local normalizedLevel = math.min(math.max(upgradeLevel, 1), 20)
+        config = {
+            xOffset = (normalizedLevel - 1) * 9,
+            width = 9,
+            height = 8,
+            size = "9 8",
+            source = '/images/inventory/upgrade-strip'
+        }
+    else
+        local normalizedLevel = math.min(math.max(upgradeLevel, 1), 20)
+        config = {
+            xOffset = (normalizedLevel - 1) * 18,
+            width = 18,
+            height = 16,
+            size = "18 16",
+            source = '/images/inventory/upgrade-strip-big'
+        }
+    end
+
+    widget.upgrade:setImageClip({
+        x = config.xOffset,
+        y = 0,
+        width = config.width,
+        height = config.height
+    })
+    widget.upgrade:setSize(config.size)
+    widget.upgrade:setImageSource(config.source)
+    widget.upgrade:setImageSize(config.size)
+    widget.upgrade:setVisible(true)
 end
 
 function ItemsDatabase.setCharges(widget, item, style)
