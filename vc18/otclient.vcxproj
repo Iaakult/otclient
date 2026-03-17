@@ -157,11 +157,11 @@
     <VcpkgInstalledDir>vcpkg_installed</VcpkgInstalledDir>
   </PropertyGroup>
   <PropertyGroup Label="Vcpkg" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <VcpkgTriplet>x86-windows-static</VcpkgTriplet>
+    <VcpkgTriplet>x86-windows</VcpkgTriplet>
     <VcpkgInstalledDir>vcpkg_installed</VcpkgInstalledDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Vcpkg">
-    <VcpkgTriplet>x64-windows-static</VcpkgTriplet>
+    <VcpkgTriplet>x64-windows</VcpkgTriplet>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

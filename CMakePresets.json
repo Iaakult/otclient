@@ -38,6 +38,22 @@
       }
     },
     {
+      "name": "windows-release-msbuild",
+      "inherits": "windows-release",
+      "displayName": "Windows - Release (msbuild)",
+      "description": "Windows Release build using Visual Studio generator in x64",
+      "generator": "Visual Studio 17 2022",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "BUILD_STATIC_LIBRARY": "ON",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static"
+      },
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      }
+    },
+    {
       "name": "windows-debug-msbuild",
       "inherits": "windows-debug",
       "displayName": "Windows - Debug (msbuild)",
@@ -163,6 +179,10 @@
     {
       "name": "windows-release",
       "configurePreset": "windows-release"
+    },
+    {
+      "name": "windows-release-msbuild",
+      "configurePreset": "windows-release-msbuild"
     },
     {
       "name": "windows-release-asan",
