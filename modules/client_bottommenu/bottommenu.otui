@@ -34,8 +34,9 @@ ShowOffWidget < UIWidget
 
 Panel
   id: bottomMenu
-  size: 1020 116
-  anchors.bottom: parent.bottom
+  size: 169 116
+  anchors.bottom: enterGame.top
+  margin-bottom: 10
   anchors.horizontalCenter: parent.horizontalCenter
   image-source: /images/ui/panel_top
   
@@ -54,95 +55,13 @@ Panel
     stroke: 2 black
     shader: Map - Party
     
-  MiniQtScrollableWindow
-    id: showOffWindow
+  MiniQtWindow
+    id: boostedWindow
+    anchors.fill: parent
     anchors.bottom: parent.bottom
     anchors.top: parent.top
     anchors.left: parent.left
-    size: 605 116
-    draggable: false
-
-    Label
-      id: showOffWindowText
-      !text: tr('Random Hint')
-      font: verdana-11px-antialised
-      text-offset: 0 2
-      text-align: top
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      anchors.left: parent.left
-      anchors.right: parent.right
-      opacity: 0.5
-
-  MiniQtWindow
-    id: eventsWindow
-    anchors.bottom: parent.bottom
-    anchors.top: parent.top
-    anchors.left: prev.right
-    margin-left: 1
-    size: 246 116
-    draggable: false
-
-    Label
-      !text: tr('Event Schedule')
-      font: verdana-11px-antialised
-      text-offset: 0 2
-      text-align: top
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      anchors.left: parent.left
-      anchors.right: parent.right
-      opacity: 0.5
-
-    UIWidget
-      anchors.top: parent.top
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.bottom: parent.bottom
-      margin-left: 10
-      margin-right: 10
-      margin-top: 22
-      margin-bottom: 8
-      image-source: /images/ui/widget_border
-      padding: 2
-      @onClick: onClickOnCalendar()
-
-      CalendarTopMark
-        !text: tr('Active')
-        &disableLeftBright: true
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.horizontalCenter
-
-      CalendarDay
-        id: activeScheduleEvent
-        anchors.top: prev.bottom
-        anchors.left: prev.left
-        anchors.right: prev.right
-        anchors.bottom: parent.bottom
-
-      CalendarTopMark
-        !text: tr('Upcoming')
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.left: parent.horizontalCenter
-        margin-left: 1  
-
-      CalendarDay
-        id: upcomingScheduleEvent
-        anchors.top: prev.bottom
-        anchors.right: prev.right
-        anchors.left: prev.left
-        anchors.bottom: parent.bottom
-        @onClick: onClickOnCalendar()
-
-  MiniQtWindow
-    id: boostedWindow
-    anchors.bottom: parent.bottom
-    anchors.top: parent.top
-    anchors.left: prev.right
-    margin-left: 1
-    size: 169 116
+    anchors.right: parent.right
     draggable: false
 
     Label
@@ -213,3 +132,4 @@ Panel
       anchors.horizontalCenter: prev.horizontalCenter
       anchors.top: prev.bottom
       margin-top: 3
+

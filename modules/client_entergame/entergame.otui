@@ -242,7 +242,7 @@ EnterGameWindow
   Label
     id: serverInfoLabel
     font: verdana-11px-rounded
-    anchors.top: prev.top
+    anchors.top: btnCreateNewAccount.top
     anchors.left: parent.left
     margin-top: 5
     color: green

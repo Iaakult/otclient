@@ -20,18 +20,6 @@ local monsterImage
 local bossOutfit
 local bossImage
 
-local default_info = {
-    -- hint 1
-    {
-        image = "images/randomhint",
-        Title = "Enabling Boosted Creature Panel",
-        description = "Boosted creatures panel requires configuring a webservice (init.lua) and preloading a client version by either setting one server in Servers_init (init.lua) or by altering entergame.lua.\n\nFor more hints, visit:\t\t https://github.com/mehah/otclient/wiki"
-    },
-
-    -- hint 2
-    -- {image = "image of label", Title = "title", description = "your hint here"},
-}
-
 function init()
     g_ui.importStyle('calendar')
     bottomMenu = g_ui.displayUI('bottommenu')
@@ -44,10 +32,11 @@ function init()
     calendarWindow:hide()
 
     showOffWindow = bottomMenu:recursiveGetChildById('showOffWindow')
-    showOffWindow.title = showOffWindow:recursiveGetChildById('showOffWindowText')
     activeScheduleEvent = bottomMenu:recursiveGetChildById('activeScheduleEvent')
     upcomingScheduleEvent = bottomMenu:recursiveGetChildById('upcomingScheduleEvent')
-    upcomingScheduleEvent:recursiveGetChildById('fill'):setOn(false)
+    if upcomingScheduleEvent then
+        upcomingScheduleEvent:recursiveGetChildById('fill'):setOn(false)
+    end
     eventSchedulerCalendarYearIndex = 1
     eventSchedulerCalendarMonth = tonumber(os.date("%m"))
 
@@ -56,30 +45,14 @@ function init()
     bossOutfit = boostedWindow:recursiveGetChildById('boss')
 
 --  if not Services.status and default_info then
-    if default_info then
-        local scrollable = showOffWindow:recursiveGetChildById('contentsPanel')
-        local widget = g_ui.createWidget('ShowOffWidget', scrollable)
-        local description = widget:recursiveGetChildById('description')
-        local image = widget:recursiveGetChildById('image')
+    monsterImage = boostedWindow:recursiveGetChildById('monsterImage')
+    bossImage = boostedWindow:recursiveGetChildById('bossImage')
 
-        math.randomseed(os.time())
-        local randomIndex = math.random(1, #default_info)
-        local randomItem = default_info[randomIndex]
-        showOffWindow.title:setText(tr(randomItem.Title))
-        image:setImageSource(randomItem.image)
-        description:setText(tr(randomItem.description))
-        monsterOutfit:setVisible(false)
-        bossOutfit:setVisible(false)
-        widget:resize(widget:getWidth(), description:getHeight())
+    monsterImage:setImageSource("images/icon-questionmark")
+    monsterImage:setVisible(true)
+    bossImage:setImageSource("images/icon-questionmark")
+    bossImage:setVisible(true)
 
-        monsterImage = boostedWindow:recursiveGetChildById('monsterImage')
-        bossImage = boostedWindow:recursiveGetChildById('bossImage')
-
-        monsterImage:setImageSource("images/icon-questionmark")
-        monsterImage:setVisible(true)
-        bossImage:setImageSource("images/icon-questionmark")
-        bossImage:setVisible(true)
-    end
     if g_game.isOnline() then
         hide()
     end
@@ -87,14 +60,16 @@ end
 
 function terminate()
     bottomMenu:destroy()
-    calendarWindow:destroy()
+    if calendarWindow then
+        calendarWindow:destroy()
+    end
 end
 
 function hide()
     bottomMenu:hide()
     bottomMenu:lower()
 
-    if not calendarWindow:isHidden() then
+    if calendarWindow and not calendarWindow:isHidden() then
         onClickCloseCalendar()
     end
 end
@@ -107,6 +82,10 @@ end
 
 -- @ Store showoff
 function setShowOffData(data)
+    if not showOffWindow or not showOffWindow.title then
+        return
+    end
+
     local widget = g_ui.createWidget('ShowOffWidget', showOffWindow)
     local image = widget:recursiveGetChildById('image')
 
@@ -291,6 +270,10 @@ function reloadEventsSchedulerCurrentPage()
 end
 
 function reloadEventsSchedulerCalender()
+    if not activeScheduleEvent or not upcomingScheduleEvent then
+        return
+    end
+
     eventSchedulerYears = {}
     table.insert(eventSchedulerYears, createCalendar(tonumber(os.date("%Y", os.time()))))
     table.insert(eventSchedulerYears, createCalendar(tonumber(os.date("%Y", os.time())) + 1))
