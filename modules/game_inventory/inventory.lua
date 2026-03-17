@@ -25,6 +25,7 @@ local getSlotPanelBySlot = {
     [InventorySlotLeg] = function(ui) return ui.legs, ui.legs.legs end,
     [InventorySlotFeet] = function(ui) return ui.boots, ui.boots.boots end,
     [InventorySlotFinger] = function(ui) return ui.ring, ui.ring.ring end,
+    [InventorySlotExt2] = function(ui) return ui.ring2, ui.ring2.ring2 end,
     [InventorySlotAmmo] = function(ui) return ui.tools, ui.tools.tools end
 }
 
@@ -304,7 +305,8 @@ local function refreshInventory_panel()
         return
     end
 
-    for i = InventorySlotFirst, InventorySlotPurse do
+    local lastInventorySlot = InventorySlotExt2 or InventorySlotPurse
+    for i = InventorySlotFirst, lastInventorySlot do
         if g_game.isOnline() then
             inventoryEvent(player, i, player:getInventoryItem(i))
         else

@@ -333,30 +333,11 @@ PhantomMiniWindow
       &slotPosition: {x = 65535, y = 10, z = 0}
 
     MainInventoryItem
-      id: soulPanel
-      anchors.left: amulet.left
-      anchors.right: amulet.right
-      anchors.bottom: boots.bottom
+      id: ring2
       anchors.top: ring.bottom
+      anchors.left: amulet.left
       margin-top: 3
-
-      Label
-        !text: tr('Soul')
-        text.align: center
-        font: cipsoftFont
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        color: #c0c0c0ff
-        margin-top: 1
-
-      Label
-        id: soul
-        !text: '100000'
-        font: cipsoftFont
-        text-align: center
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        color: #c0c0c0ff
+      &slotPosition: {x = 65535, y = 13, z = 0}
 
     MainInventoryItem
       id: capacityPanel

@@ -158,6 +158,10 @@ InventorySlotFeet = 8
 InventorySlotFinger = 9
 InventorySlotAmmo = 10
 InventorySlotPurse = 11
+InventorySlotExt1 = 12
+InventorySlotExt2 = 13
+InventorySlotExt3 = 14
+InventorySlotExt4 = 15
 
 InventorySlotFirst = 1
 InventorySlotLast = 10
