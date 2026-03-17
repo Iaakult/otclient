@@ -94,9 +94,9 @@ function onGameStart()
     -- Recreate item cache on each login (may have been cleared by reset())
     WeaponProficiency:createItemCache()
 
-    -- Add button to main panel (only for clients that support proficiency system)
-    -- Use addToggleButton for notification support (20x40 vertical image)
-    if modules.game_mainpanel and g_game.getClientVersion() >= 1500 then
+    -- Add button to main panel for quick access.
+    -- Packet support can vary by server, but UI must always be openable.
+    if modules.game_mainpanel then
         WeaponProficiency.button = modules.game_mainpanel.addToggleButton(
             'ProficiencyButton',
             tr('Open Weapon Proficiency'),
@@ -109,6 +109,21 @@ function onGameStart()
         if WeaponProficiency.button then
             local btn = WeaponProficiency.button:getChildById('button')
             if btn then btn:setOn(false) end
+
+            -- Keep proficiency button visible even if an old config hid it.
+            local cfg = g_settings.getNode('control_buttons') or { buttons = {}, order = {} }
+            cfg.buttons = cfg.buttons or {}
+            if not cfg.buttons.ProficiencyButton then
+                cfg.buttons.ProficiencyButton = { visible = true, tooltip = tr('Open Weapon Proficiency') }
+                g_settings.setNode('control_buttons', cfg)
+                g_settings.save()
+            elseif cfg.buttons.ProficiencyButton.visible ~= true then
+                cfg.buttons.ProficiencyButton.visible = true
+                g_settings.setNode('control_buttons', cfg)
+                g_settings.save()
+            end
+
+            WeaponProficiency.button:setVisible(true)
         end
     end
 
@@ -566,14 +581,14 @@ function requestOpenWindow(redirectItem)
         end
     end
 
-    -- Request all proficiencies from server
-    if not WeaponProficiency.allProficiencyRequested then
+    show()
+
+    -- Request all proficiencies from server (if protocol function exists)
+    if not WeaponProficiency.allProficiencyRequested and g_game.sendWeaponProficiencyAction then
         g_game.sendWeaponProficiencyAction(1) -- Request all weapons
         WeaponProficiency.allProficiencyRequested = true
         WeaponProficiency.firstItemRequested = redirectItem
     end
-
-    show()
 end
 
 -- Helper function to get weapon category string

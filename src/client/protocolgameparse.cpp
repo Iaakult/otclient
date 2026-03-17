@@ -641,6 +641,15 @@ void ProtocolGame::parseMessage(const InputMessagePtr& msg)
                     parseOpenWheelWindow(msg);
                     break;
                 default: {
+                    // Some custom servers may occasionally emit a null-byte between valid opcodes.
+                    // Skipping it keeps parsing aligned and avoids a full message drop cascade.
+                    if (opcode == 0x00) {
+                        g_logger.warning(
+                            "[{}] Ignoring stray opcode 0x00; previous opcode: 0x{:02X} ({})",
+                            g_game.getClientVersion(), prevOpcode, prevOpcode);
+                        break;
+                    }
+
                     const auto unreadSize = msg->getUnreadSize();
                     const auto previewSize = std::min<size_t>(unreadSize, 32);
                     const auto remainingBytes = msg->peekBytes(previewSize);

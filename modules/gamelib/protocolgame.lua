@@ -80,7 +80,7 @@ function ProtocolGame.unregisterExtendedOpcode(opcode)
     end
 
     if not extendedCallbacks[opcode] then
-        error('Opcode is not registered.')
+        return
     end
 
     extendedCallbacks[opcode] = nil
@@ -108,7 +108,7 @@ function ProtocolGame.unregisterExtendedJSONOpcode(opcode)
     end
 
     if not extendedJSONCallbacks[opcode] then
-        error('Opcode is not registered.')
+        return
     end
 
     extendedJSONCallbacks[opcode] = nil
