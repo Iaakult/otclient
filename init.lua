@@ -3,11 +3,13 @@
 
 -- updater
 Services = {
-    --updater = "http://localhost/api/updater.php", --./updater
-    --status = "http://localhost/login.php", --./client_entergame | ./client_topmenu
-    --websites = "http://localhost/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
-    --createAccount = "http://localhost/clientcreateaccount.php", --./client_entergame -- createAccount.lua
-    --getCoinsUrl = "http://localhost/?subtopic=shop&step=terms", --./game_market
+    --updater = "http://play.otbaiak.com/api/updater.php", --./updater
+    status = "https://play.otbaiak.com/login.php", --./client_entergame | ./client_topmenu
+    websites = "https://play.otbaiak.com/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
+    createAccount = "https://play.otbaiak.com/?account/create", --./client_entergame -- createAccount.lua
+    getCoinsUrl = "https://play.otbaiak.com/?subtopic=shop&step=terms", --./game_market
+    storeWebsiteGetCoins = "https://play.otbaiak.com",
+    storeImagesUrl = "https://play.otbaiak.com/images/store/",
 }
 
 --- Enables or disables the entire server configuration block.
@@ -62,7 +64,7 @@ if ENABLE_SERVERS then
         --
         ["http://127.0.0.1/login.php"] = {
             port = 80,
-            protocol = 1412,
+            protocol = 1511,
             httpLogin = true,
             useAuthenticator = false
         },
@@ -76,17 +78,17 @@ if ENABLE_SERVERS then
         -- @field protocol Protocol identifier used by the server
         -- @field httpLogin Indicates if the server allows HTTP login
         --
-        ["ip.net"] = {
-            port = 7171,
-            protocol = 860,
-            httpLogin = false
-        }
+        --["ip.net"] = {
+        --   port = 7171,
+        --   protocol = 860,
+        --   httpLogin = false
+        --}
     }
 end
 
-g_app.setName("OTClient - Redemption");
-g_app.setCompactName("otclient");
-g_app.setOrganizationName("otcr");
+g_app.setName("OTBClient - OTBaiak");
+g_app.setCompactName("otbclient");
+g_app.setOrganizationName("otbaiak");
 
 g_app.hasUpdater = function()
     return (Services.updater and Services.updater ~= "" and g_modules.getModule("updater"))
@@ -167,7 +169,7 @@ local function loadModules()
     end
 
     -- uncomment the line below so that modules are reloaded when modified. (Note: Use only mod dev)
-    -- g_modules.enableAutoReload()
+    g_modules.enableAutoReload()
 end
 
 -- run updater, must use data.zip

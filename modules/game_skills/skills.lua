@@ -281,6 +281,7 @@ local function toggleGroupVisibility(groupName)
     end
     skillSettings[char][groupName .. 'Stats_visible'] = shouldShow
     g_settings.setNode('skills-hide', skillSettings)
+    updateHeight()
 end
 
 local function hideOldClientStats()
@@ -490,6 +491,7 @@ function toggleSkillProgressBar(skillId)
             end
             skillSettings[char][skillId] = isVisible and 1 or 0  -- 1 = hidden, 0 = visible
             g_settings.setNode('skills-hide', skillSettings)
+            updateHeight()
         end
     end
 end
@@ -523,6 +525,7 @@ function toggleSkillVisibility(skillId)
             end
             skillSettings[char][skillId] = isVisible and 1 or 0  -- 1 = hidden, 0 = visible
             g_settings.setNode('skills-hide', skillSettings)
+            updateHeight()
         end
     end
 end
@@ -599,6 +602,7 @@ function toggleAllSkillBars()
     end
     
     g_settings.setNode('skills-hide', skillSettings)
+    updateHeight()
 end
 
 function expForLevel(level)
@@ -918,11 +922,13 @@ function loadSkillsVisibilitySettings()
             end
         end
     end
+
+    updateHeight()
 end
 
 function updateHeight()
-    local maximumHeight = 8 -- margin top and bottom
-    local minimumHeight = 80 -- ensure minimum height is maintained
+    local minimumHeight = 80
+    local maximumHeight = minimumHeight
 
     if g_game.isOnline() then
         local char = g_game.getCharacterName()
@@ -940,15 +946,21 @@ function updateHeight()
                 if percentBar then
                     showPercentBar(skillButton, skillSettings[char][skillButton:getId()] ~= 1)
                 end
-                maximumHeight = maximumHeight + skillButton:getHeight() + skillButton:getMarginBottom()
             end
+        end
+
+        local contentsPanel = skillsWindow:getChildById('contentsPanel')
+        if contentsPanel then
+            contentsPanel:updateLayout()
+            local childrenRect = contentsPanel:getChildrenRect()
+            local childrenHeight = childrenRect and childrenRect.height or 0
+            maximumHeight = math.max(minimumHeight, childrenHeight)
         end
     else
         maximumHeight = 390
     end
 
-    local contentsPanel = skillsWindow:getChildById('contentsPanel')
-    skillsWindow:setContentMinimumHeight(math.max(minimumHeight, 44))
+    skillsWindow:setContentMinimumHeight(minimumHeight)
     skillsWindow:setContentMaximumHeight(maximumHeight)
 end
 
@@ -1052,16 +1064,15 @@ function onSkillButtonClick(button)
     local skillIcon = button:getChildById('icon')
     if percentBar and skillIcon then
         showPercentBar(button, not percentBar:isVisible())
-        skillIcon:setVisible(skillIcon:isVisible())
 
         local char = g_game.getCharacterName()
         if percentBar:isVisible() then
-            skillsWindow:modifyMaximumHeight(6)
             skillSettings[char][button:getId()] = 0
         else
-            skillsWindow:modifyMaximumHeight(-6)
             skillSettings[char][button:getId()] = 1
         end
+
+        updateHeight()
     end
 end
 

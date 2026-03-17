@@ -1,5 +1,6 @@
 local standModeBox
 local chaseModeBox
+local vBotQuickButton = nil
 local optionsAmount = 0
 local specialsAmount = 0
 local storeAmount = 0
@@ -16,20 +17,134 @@ local COLORS = {
 
 local PANEL_CONSTANTS = {
     ICON_WIDTH = 18,
-    ICON_HEIGHT = 18,
+    ICON_HEIGHT = 20,
     MAX_ICONS_PER_ROW = {
         OPTIONS = 5,
         SPECIALS = 2,
         STORE = 1
     },
     MULTI_STORE_HEIGHT = 20,
-    HEIGHT_EXTRA_ONPANEL = -5,
+    PANEL_SPACING = 2,
+    STORE_OPTIONS_GAP = 10,
+    STORE_BASE_HEIGHT = 20,
+    HEIGHT_EXTRA_ONPANEL = 0,
     HEIGHT_EXTRA_SHRINK = 5
 }
 
 local optionsShrink = false
 
+local function forceControlButtonVisible(buttonId, tooltip, placeLast)
+    local config = g_settings.getNode('control_buttons') or { buttons = {}, order = {} }
+    config.buttons = config.buttons or {}
+    config.order = config.order or {}
+
+    local changed = false
+    if not config.buttons[buttonId] then
+        config.buttons[buttonId] = { visible = true, tooltip = tooltip }
+        changed = true
+    elseif config.buttons[buttonId].visible ~= true then
+        config.buttons[buttonId].visible = true
+        changed = true
+    end
+
+    local orderIds = {}
+    local orderKeys = {}
+    for key in pairs(config.order) do
+        local numericKey = tonumber(key)
+        if numericKey then
+            table.insert(orderKeys, numericKey)
+        end
+    end
+    table.sort(orderKeys)
+    for _, key in ipairs(orderKeys) do
+        local id = config.order[tostring(key)]
+        if id then
+            table.insert(orderIds, id)
+        end
+    end
+
+    local currentIndex = nil
+    for i, id in ipairs(orderIds) do
+        if id == buttonId then
+            currentIndex = i
+            break
+        end
+    end
+
+    if currentIndex == nil then
+        table.insert(orderIds, buttonId)
+        changed = true
+    elseif placeLast and currentIndex ~= #orderIds then
+        table.remove(orderIds, currentIndex)
+        table.insert(orderIds, buttonId)
+        changed = true
+    end
+
+    if changed then
+        config.order = {}
+        for i, id in ipairs(orderIds) do
+            config.order[tostring(i)] = id
+        end
+    end
+
+    if changed then
+        g_settings.setNode('control_buttons', config)
+        g_settings.save()
+    end
+end
+
+local function toggleVBotQuick()
+    if not modules.game_bot then
+        g_modules.ensureModuleLoaded('game_bot')
+    end
+
+    if modules.game_bot and modules.game_bot.toggle then
+        modules.game_bot.toggle()
+        return
+    end
+
+    displayInfoBox(tr('vBot'), tr('Nao foi possivel carregar o modulo game_bot.'))
+end
+
 local function calculatePanelHeight(panel, max_icons_per_row)
+    if not panel or (panel.isDestroyed and panel:isDestroyed()) or (panel.isVisible and not panel:isVisible()) then
+        return 0, 0
+    end
+
+    local function rowsToHeight(rows)
+        if rows <= 0 then
+            return 0
+        end
+        return (rows * PANEL_CONSTANTS.ICON_HEIGHT) + ((rows - 1) * PANEL_CONSTANTS.PANEL_SPACING)
+    end
+
+    if panel and panel:getId() == 'specials' then
+        local gridPanel = panel:getChildById('specialsGrid')
+        local widePanel = panel:getChildById('specialsWide')
+        if gridPanel and widePanel then
+            local gridVisible = 0
+            for _, icon in ipairs(gridPanel:getChildren()) do
+                if icon:isVisible() then
+                    gridVisible = gridVisible + 1
+                end
+            end
+            local wideVisible = 0
+            for _, icon in ipairs(widePanel:getChildren()) do
+                if icon:isVisible() then
+                    wideVisible = wideVisible + 1
+                end
+            end
+
+            local gridRows = math.ceil(gridVisible / (max_icons_per_row > 0 and max_icons_per_row or 1))
+            local totalRows = gridRows + wideVisible
+            if totalRows <= 0 then
+                return 0, 0
+            end
+            local height = rowsToHeight(totalRows)
+            return height, gridVisible + wideVisible
+        end
+    end
+
     local icon_count = 0
     for _, icon in ipairs(panel:getChildren()) do
         if icon:isVisible() then
@@ -37,7 +152,7 @@ local function calculatePanelHeight(panel, max_icons_per_row)
         end
     end
     local rows = math.ceil(icon_count / max_icons_per_row)
-    local height = (rows * PANEL_CONSTANTS.ICON_HEIGHT) + (rows * 3)
+    local height = rowsToHeight(rows)
     return height, icon_count
 end
 
@@ -64,15 +179,12 @@ function reloadMainPanelSizes()
                         local store_panel = panel.onPanel.store
                         local store_height, store_count = calculatePanelHeight(store_panel,
                             PANEL_CONSTANTS.MAX_ICONS_PER_ROW.STORE)
-                        if store_count > 0 then
-                            store_height = store_count * PANEL_CONSTANTS.MULTI_STORE_HEIGHT + (store_count - 1) * 2
+                        local content_height = math.max(options_height, specials_height)
+                        local combined_height = math.max(0, store_height - PANEL_CONSTANTS.STORE_BASE_HEIGHT)
+                        if content_height > 0 then
+                            combined_height = combined_height + PANEL_CONSTANTS.STORE_OPTIONS_GAP + content_height
                         end
-                        local combined_height = store_height + math.max(options_height, specials_height)
-                        local extra_height = PANEL_CONSTANTS.HEIGHT_EXTRA_ONPANEL
-                        if store_count >= 2 then
-                            extra_height = extra_height - (store_count - 1) * 5
-                        end
-                        combined_height = combined_height + extra_height
+                        combined_height = combined_height + PANEL_CONSTANTS.HEIGHT_EXTRA_ONPANEL
                         store_panel:setHeight(store_height)
                         panel:setHeight(combined_height + panel.panelHeight)
                         total_height = total_height + combined_height
@@ -91,11 +203,23 @@ end
 
 local function refreshOptionsSizes()
     if optionsShrink then
-        optionsController.ui:setOn(false)
-        optionsController.ui.offPanel:show()
+        optionsController.ui:setOn(true)
+        optionsController.ui.offPanel:hide()
+        optionsController.ui.onPanel.options:hide()
+        optionsController.ui.onPanel.specials:hide()
+        local separator = optionsController.ui.onPanel:recursiveGetChildById('storeSeparator')
+        if separator then
+            separator:hide()
+        end
     else
         optionsController.ui:setOn(true)
         optionsController.ui.offPanel:hide()
+        optionsController.ui.onPanel.options:show()
+        optionsController.ui.onPanel.specials:show()
+        local separator = optionsController.ui.onPanel:recursiveGetChildById('storeSeparator')
+        if separator then
+            separator:show()
+        end
     end
     reloadMainPanelSizes()
 end
@@ -131,7 +255,8 @@ end
 local function createButton(id, description, image, callback, special, front, index)
     local panel
     if special then
-        panel = optionsController.ui.onPanel.specials
+        local specialsPanel = optionsController.ui.onPanel.specials
+        panel = specialsPanel and specialsPanel:getChildById('specialsGrid') or specialsPanel
         specialsAmount = specialsAmount + 1
     else
         panel = optionsController.ui.onPanel.options
@@ -159,8 +284,18 @@ local function createButton(id, description, image, callback, special, front, in
             return true
         end
     end
+    local shouldReorder = false
     if not button.index and type(index) == 'number' then
         button.index = index or 1000
+        shouldReorder = true
+    end
+
+    if shouldReorder then
+        local children = panel:getChildren()
+        table.sort(children, function(a, b)
+            return (a.index or 1000) < (b.index or 1000)
+        end)
+        panel:reorderChildren(children)
     end
 
     refreshOptionsSizes()
@@ -174,9 +309,109 @@ function optionsController:onInit()
     createButton_large('Store shop', tr('Store shop'), '/images/options/store_large', toggleStore,
     false, 8)
 
+    local storePanel = optionsController.ui and optionsController.ui.onPanel and optionsController.ui.onPanel.store
+    if storePanel then
+        local wrapper = storePanel:getChildById('battlepassStoreButton')
+        if not wrapper then
+            wrapper = g_ui.createWidget('BattlePassStoreButtonWrapper', storePanel)
+            wrapper:setId('battlepassStoreButton')
+        end
+        if wrapper and wrapper.setMarginTop then
+            wrapper:setMarginTop(4)
+        end
+        local button = wrapper and wrapper.getChildById and (wrapper:getChildById('battlepassButton') or wrapper:getChildById('button')) or nil
+        if button then
+            button:setTooltip(tr('Battle Pass'))
+            button:setText(tr('Battle Pass'))
+            button:setFont('verdana-11px-antialised')
+            if button.setIcon then
+                button:setIcon('/images/topbuttons/archpass')
+            end
+            button.onMouseRelease = function(widget, mousePos, mouseButton)
+                if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                    if modules.game_battlepass and modules.game_battlepass.m_BattlepassFunctions and modules.game_battlepass.m_BattlepassFunctions.open then
+                        modules.game_battlepass.m_BattlepassFunctions.open()
+                    end
+                    return true
+                end
+            end
+        end
+
+        -- Helper button (game_helper mod)
+        local helperWrapper = storePanel:getChildById('helperStoreButton')
+        if not helperWrapper then
+            helperWrapper = g_ui.createWidget('BattlePassStoreButtonWrapper', storePanel)
+            helperWrapper:setId('helperStoreButton')
+        end
+        if helperWrapper then
+            if helperWrapper.setMarginTop then
+                helperWrapper:setMarginTop(4)
+            end
+            local helperBtn = helperWrapper.getChildById and (helperWrapper:getChildById('battlepassButton') or helperWrapper:getChildById('button')) or nil
+            if helperBtn then
+                helperBtn:setTooltip(tr('Helper'))
+                helperBtn:setText(tr('Helper'))
+                helperBtn:setFont('verdana-11px-antialised')
+                if helperBtn.setIcon then
+                    helperBtn:setIcon('/images/icons/icon-healing')
+                end
+                helperBtn.onMouseRelease = function(widget, mousePos, mouseButton)
+                    if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                        if modules.game_helper and modules.game_helper.show then
+                            modules.game_helper.show()
+                        elseif modules.game_helper and modules.game_helper.toggle then
+                            modules.game_helper.toggle()
+                        end
+                        return true
+                    end
+                end
+            end
+        end
+
+        -- Guild Management button (game_guildmanagement mod)
+        local guildWrapper = storePanel:getChildById('guildManagementStoreButton')
+        if not guildWrapper then
+            guildWrapper = g_ui.createWidget('BattlePassStoreButtonWrapper', storePanel)
+            guildWrapper:setId('guildManagementStoreButton')
+        end
+        if guildWrapper then
+            if guildWrapper.setMarginTop then
+                guildWrapper:setMarginTop(4)
+            end
+            if guildWrapper.setMarginBottom then
+                guildWrapper:setMarginBottom(4)
+            end
+            local guildBtn = guildWrapper.getChildById and (guildWrapper:getChildById('battlepassButton') or guildWrapper:getChildById('button')) or nil
+            if guildBtn then
+                guildBtn:setTooltip(tr('Guild Management'))
+                guildBtn:setText(tr('Guilds'))
+                guildBtn:setFont('verdana-11px-antialised')
+                if guildBtn.setIcon then
+                    guildBtn:setIcon('/images/icons/icon_shielding')
+                end
+                guildBtn.onMouseRelease = function(widget, mousePos, mouseButton)
+                    if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+                        if modules.game_guildmanagement and modules.game_guildmanagement.toggle then
+                            modules.game_guildmanagement.toggle()
+                        end
+                        return true
+                    end
+                end
+            end
+        end
+    end
     if not optionPanel then
         optionPanel = g_ui.loadUI('option_control_buttons', modules.client_options:getPanel())
         modules.client_options.addButton("Interface", "Control Buttons", optionPanel, function() initControlButtons() end)
+    end
+
+    if not vBotQuickButton then
+        vBotQuickButton = createButton('vBotQuickButton', tr('vBot'), '/images/options/button_vbot', toggleVBotQuick, false, false, 99999)
+    end
+
+    forceControlButtonVisible('vBotQuickButton', tr('vBot'), true)
+    if vBotQuickButton then
+        vBotQuickButton:setVisible(true)
     end
 end
 
@@ -197,6 +432,10 @@ function optionsController:onTerminate()
     if controlButton1400 then
         controlButton1400:destroy()
         controlButton1400 = nil
+    end
+    if vBotQuickButton then
+        vBotQuickButton:destroy()
+        vBotQuickButton = nil
     end
 end
 
@@ -229,6 +468,12 @@ function optionsController:onGameStart()
                 updateAvailableButtonsList()
                 reloadMainPanelSizes()
             end
+        end
+
+        forceControlButtonVisible('vBotQuickButton', tr('vBot'), true)
+        local vbotBtn = getButton('vBotQuickButton')
+        if vbotBtn then
+            vbotBtn:setVisible(true)
         end
     end, 50, "onGameStart")
     if g_game.getClientVersion() >= 1400 and not controlButton1400 then

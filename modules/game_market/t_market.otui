@@ -396,7 +396,7 @@ MarketItemList < UIWidget
     anchors.verticalCenter: parent.verticalCenter
     margin-left: 2
     font: verdana-11px-rounded
-    always-show-count: true
+    always-show-count: false
     focusable: true
     draggable: false
 
@@ -412,6 +412,19 @@ MarketItemList < UIWidget
       focusable: false
       visible: false
       image-smooth: true
+
+    Label
+      id: depotOverlay
+      anchors.bottom: parent.bottom
+      anchors.right: parent.right
+      margin-right: 1
+      margin-bottom: 0
+      font: verdana-11px-rounded
+      color: #e7e7e7
+      text-align: right
+      text-auto-resize: true
+      visible: false
+      phantom: true
 
   Label
     id: name

@@ -56,7 +56,6 @@ PopupScrollMenuButton < UIButton
 PopupScrollMenuShortcutLabel < Label
   font: verdana-11px-antialised
   text-align: right
-  anchors.fill: parent
   margin-right: 2
   margin-left: 5
 

@@ -1,6 +1,9 @@
 MarketHistory = {}
 MarketHistory.__index = MarketHistory
 
+MarketHistory.lastSelectedSellWidget = nil
+MarketHistory.lastSelectedBuyWidget = nil
+
 local onTopListValueChange = nil
 local onBottomListValueChange = nil
 
@@ -21,6 +24,12 @@ local bottomListPool = {}
 
 local topListData = {}
 local bottomListData = {}
+
+local function clearTable(t)
+    for k in pairs(t) do
+        t[k] = nil
+    end
+end
 
 function MarketHistory.onTopListValueChange(scroll, value, delta)
     local startLabel = math.max(topListMin, value)
@@ -74,7 +83,7 @@ function MarketHistory.onTopListValueChange(scroll, value, delta)
 
     local window = marketWindow.MarketHistory:recursiveGetChildById('sellOffersList')
     window:focusChild(nil)
-    lastSelectedHistorySell = nil
+    MarketHistory.lastSelectedSellWidget = nil
 end
 
 function MarketHistory.onBottomListValueChange(scroll, value, delta)
@@ -128,19 +137,20 @@ function MarketHistory.onBottomListValueChange(scroll, value, delta)
 
     local window = marketWindow.MarketHistory:recursiveGetChildById('buyOffersList')
     window:focusChild(nil)
-    lastSelectedHistoryBuy = nil
+    MarketHistory.lastSelectedBuyWidget = nil
 end
 
 function MarketHistory.onParseMarketHistory(buyOffers, sellOffers)
     local window = marketWindow.MarketHistory.offerHistory
+    clearTable(topListPool)
+    clearTable(bottomListPool)
     window.sellOffersList:destroyChildren()
     window.buyOffersList:destroyChildren()
-    lastSelectedHistorySell = nil
-    lastSelectedHistoryBuy = nil
+    MarketHistory.lastSelectedSellWidget = nil
+    MarketHistory.lastSelectedBuyWidget = nil
 
     topListFitItems = math.floor(window.sellOffersList:getHeight() / labelSize)
     topListMin = 0
-    topListPool = {}
     topListData = sellOffers
     topListMax = #sellOffers
 
@@ -189,7 +199,6 @@ function MarketHistory.onParseMarketHistory(buyOffers, sellOffers)
 
     bottomListFitItems = math.floor(window.buyOffersList:getHeight() / labelSize)
     bottomListMin = 0
-    bottomListPool = {}
     bottomListData = buyOffers
     bottomListMax = #buyOffers
 
@@ -263,7 +272,7 @@ function MarketHistory.onSelectHistoryChild(widget, selected, selling)
         return
     end
 
-    local lastSelected = selling and lastSelectedHistorySell or lastSelectedHistoryBuy
+    local lastSelected = selling and MarketHistory.lastSelectedSellWidget or MarketHistory.lastSelectedBuyWidget
     if lastSelected then
         if not lastSelected.piecePrice then
             lastSelected = nil
@@ -279,9 +288,9 @@ function MarketHistory.onSelectHistoryChild(widget, selected, selling)
     end
 
     if selling then
-        lastSelectedHistorySell = selected
+        MarketHistory.lastSelectedSellWidget = selected
     else
-        lastSelectedHistoryBuy = selected
+        MarketHistory.lastSelectedBuyWidget = selected
     end
 
     selected:setBackgroundColor('#585858')

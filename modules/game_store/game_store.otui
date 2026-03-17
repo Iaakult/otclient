@@ -37,7 +37,7 @@ HistoryEntry < UIWidget
     margin-left: 242
 
 RowStore < StoreLightFlatPanel
-  height: 78
+  height: 75
   margin: 2
   border: 0 white
 
@@ -47,6 +47,8 @@ RowStore < StoreLightFlatPanel
   Box
     id: image
     size: 64 64
+    fixed-size: true
+    clipping: true
     anchors.top: parent.top
     anchors.left: parent.left
     margin: 5 0 0 5
@@ -56,6 +58,7 @@ RowStore < StoreLightFlatPanel
     anchors.top: parent.top
     anchors.left: prev.right
     anchors.right: parent.right
+    anchors.bottom: StackOffers.top
     margin: 8 0 0 8
     text-auto-resize: true
     text-wrap: true
@@ -63,8 +66,50 @@ RowStore < StoreLightFlatPanel
     id: StackOffers
     margin-left: 31
     height: 80
-    margin-top: 12
-    anchors.top: prev.bottom
+    margin-bottom: 5
+    anchors.bottom: parent.bottom
+    anchors.left: image.right
+    anchors.right: parent.right
+    layout:
+      type: grid
+      cell-size: 145 20
+      cell-spacing: 5
+      flow: true
+      fit-children: true
+
+RowStoreHome < StoreLightFlatPanel
+  height: 94
+  margin: 1
+  border: 0 white
+
+  $focus:
+    border: 2 white
+
+  Box
+    id: image
+    size: 64 64
+    fixed-size: true
+    clipping: true
+    anchors.top: parent.top
+    anchors.left: parent.left
+    margin: 5 0 0 5
+
+  Label
+    id: lblName
+    anchors.top: parent.top
+    anchors.left: prev.right
+    anchors.right: parent.right
+    anchors.bottom: StackOffers.top
+    margin: 8 0 0 8
+    text-auto-resize: true
+    text-wrap: true
+
+  Panel
+    id: StackOffers
+    margin-left: 31
+    height: 20
+    margin-bottom: 5
+    anchors.bottom: parent.bottom
     anchors.left: image.right
     anchors.right: parent.right
     layout:
@@ -93,7 +138,7 @@ MenuCategoryStore < UIWidget
     image-clip: 0 22 166 22
 
 StoreWindow
-  size: 780 537
+  size: 775 575
   !text: tr('Store')
   color: #909090
   visible: false
@@ -305,7 +350,7 @@ StoreWindow
       image-border: 3
       layout: verticalBox
       padding: 5
-      margin-top:5
+      margin-top: 5
       auto-focus: none
     
     VerticalScrollBar
@@ -325,11 +370,13 @@ StoreWindow
       text-auto-resize: true
       text-align: center
       text: Prismatic Unicorn
-      margin-top:5
+      margin-top: 5
 
     Box
       id: image
-      size: 96 96
+      size: 64 64
+      fixed-size: true
+      clipping: true
       anchors.top: lblName.bottom
       anchors.left: scrollList.right
       margin: 8 0 0 8
@@ -347,7 +394,7 @@ StoreWindow
         flow: true
         fit-children: true
 
-    StoreFlatLabel
+    StoreFlatHtml
       id: lblDescription
       anchors.top: image.bottom
       anchors.left: scrollList.right
@@ -355,8 +402,6 @@ StoreWindow
       anchors.bottom: scrollList.bottom
       margin-left: 8
       margin-top: 7
-      text-auto-resize: true
-      text-wrap: true
 
   QtPanel
     id: transferHistory
@@ -411,12 +456,17 @@ StoreWindow
     padding: 6
     UIWidget
       id: HomeImagen
-      height: 20
-      size: 530 202
+      height: 202
       anchors.top: parent.top
       anchors.left: parent.left
       anchors.right: parent.right
-      margin-right:10
+
+      UIWidget
+        id: HomeImagenBorder
+        anchors.fill: parent
+        image-source: /images/ui/1pixel_down_frame
+        image-border: 5
+        phantom: true
     UIButton
       id: prevImagen
       anchors.verticalCenter: prev.verticalCenter
@@ -448,31 +498,30 @@ StoreWindow
       id:HomeRecentlyAdded
       anchors.top: HomeImagen.bottom
       anchors.left: parent.left
+      anchors.right: parent.right
       anchors.bottom: parent.bottom
-      size: 530 407
       margin-top:10
       text: Recently Added
       UIScrollArea
         id: HomeProductos
-        size: 505 190
         vertical-scrollbar: scrollList2
         image-border: 3
-        layout: verticalBox
-        margin-right:10
-
-
         auto-focus: none
-        anchors.fill: parent
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.right: scrollList2.left
         layout:
           type: grid
-          cell-size: 254 94
+          cell-size: 250 77
+          cell-spacing: 0
           flow: true
 
       
       VerticalScrollBar
         id: scrollList2
-        anchors.top: HomeProductos.top
-        anchors.bottom: HomeProductos.bottom
-        anchors.left: HomeProductos.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.right: parent.right
         step: 14
         pixels-scroll: true

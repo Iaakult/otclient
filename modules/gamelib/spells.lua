@@ -29,6 +29,168 @@ SpelllistSettings = {
 }]]
 }
 
+SpellAreas = {
+    AREA_BEAM5 = {
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {3}
+    },
+    AREA_BEAM6 = {
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {3}
+    },
+    AREA_BEAM7 = {
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {3}
+    },
+    AREA_BEAM8 = {
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {1},
+        {3}
+    },
+    AREA_SQUAREWAVE1 = {
+        {1, 1, 1},
+        {0, 3, 0}
+    },
+    AREA_SQUAREWAVE3 = {
+        {1, 1, 1},
+        {1, 1, 1},
+        {0, 1, 0},
+        {0, 3, 0}
+    },
+    AREA_SQUAREWAVE4 = {
+        {1, 1, 1},
+        {1, 1, 1},
+        {1, 1, 1},
+        {0, 1, 0},
+        {0, 1, 0},
+        {0, 3, 0}
+    },
+    AREA_SQUAREWAVE5 = {
+        {1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 0},
+        {0, 1, 1, 1, 0},
+        {0, 0, 1, 0, 0},
+        {0, 0, 3, 0, 0}
+    },
+    AREA_SQUAREWAVE6 = {
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 0},
+        {0, 1, 1, 1, 0},
+        {0, 0, 1, 0, 0},
+        {0, 0, 3, 0, 0}
+    },
+    --Circles
+    AREA_CIRCLE1X1 = {
+        {1, 1, 1},
+        {1, 3, 1},
+        {1, 1, 1},
+    },
+    AREA_CIRCLE2X2 = {
+        {0, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1},
+        {1, 1, 3, 1, 1},
+        {1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 0}
+    },
+    AREA_CIRCLE3X3 = {
+        {0, 0, 1, 1, 1, 0, 0},
+        {0, 1, 1, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1, 1, 1},
+        {1, 1, 1, 3, 1, 1, 1},
+        {1, 1, 1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 1, 1, 0},
+        {0, 0, 1, 1, 1, 0, 0}
+    },
+    AREA_CIRCLE5X5 = {
+        {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0},
+        {0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0},
+        {0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0},
+        {0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0},
+        {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
+    },
+    AREA_CIRCLE6X6 = {
+        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+        {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
+        {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0},
+        {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0},
+        {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0},
+        {0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0}
+    },
+    AREA_RING_BURST3 = {
+        { 0, 0, 0, 1, 1, 1, 0, 0, 0 },
+        { 0, 0, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 1, 1, 1, 1, 1, 1, 1, 0 },
+        { 1, 1, 1, 0, 0, 0, 1, 1, 1 },
+        { 1, 1, 1, 0, 3, 0, 1, 1, 1 },
+        { 1, 1, 1, 0, 0, 0, 1, 1, 1 },
+        { 0, 1, 1, 1, 1, 1, 1, 1, 0 },
+        { 0, 0, 1, 1, 1, 1, 1, 0, 0 },
+        { 0, 0, 0, 1, 1, 1, 0, 0, 0 },
+    },
+    AREA_BURSTWAVE1 = {
+        {0, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1},
+        {1, 1, 3, 1, 1},
+        {0, 1, 0, 1, 0}
+    },
+    AREA_FLURRYWAVE = {
+      {0, 0, 1, 0, 0},
+      {0, 1, 1, 1, 0},
+      {0, 1, 1, 1, 0},
+      {0, 1, 3, 1, 0},
+    },
+    AREA_GREATER_FLURRYWAVE = {
+        {0, 0, 1, 0, 0},
+        {0, 1, 1, 1, 0},
+        {0, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1},
+        {0, 1, 3, 1, 0}
+     },
+    AREA_SHORTWAVE4 = {
+        {0, 1, 1, 1, 0},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 1, 1, 1},
+        {1, 1, 3, 1, 1},
+    }
+      
+}
+
 -- check "/docs/generate_spell_data.py"
 -- spells from canary
 SpellInfo = {
@@ -244,6 +406,201 @@ SpellInfo = {
     }
 }
 
+SpellIcons = {
+
+  ['terraburst'] = {155, 262},
+  ['iceburst'] = {154, 263},
+  ['greatdeathbeam'] = {158, 260},
+  ['executionersthrow'] = {153, 261},
+  ['divinegrenade'] = {156, 258},
+  ['divineempowerment'] = {159, 268},
+  ['avatarofstorm'] = {152, 266},
+  ['avatarofsteel'] = {149, 264},
+  ['avatarofnature'] = {150, 267},
+  ['avataroflight'] = {151, 265},
+
+  ['conjurewandofdarkness'] = {142, 92},
+  ['findfiend'] = {148, 20},
+
+  ['sapstrenght'] = {111, 244},
+  ['exposeweakness'] = {110, 243},
+  ["naturesembrace"] = {8, 242},
+  ['restoration'] = {108, 241},
+  ['greatfirewave'] = {103, 240},
+  ['fairwoundcleansing'] = {5, 239},
+  ['divinedazzle'] = {139, 238},
+  ['chivalrouschallange'] = {112, 237},
+
+  ['scorch'] = {132, 178},
+  ['buzz'] = {133, 177},
+  ['arrowcall'] = {138, 176},
+  ['bruisebane'] = {135, 175},
+  ['magicpatch'] = {134, 174},
+  ['chillout'] = {136, 173},
+  ['mudattack'] = {137, 172},
+
+  ['apprenticesstrike'] = {127, 169},
+  ['practisemagicmissile'] = {130, 168},
+  ['practisefirewave'] = {129, 167},
+  ['practisehealing'] = {128, 166},
+
+  ['intenserecovery'] = {16, 160},
+  ['recovery'] = {15, 159},
+  ['intensewoundcleansing'] = {4, 158},
+  ['ultimateterrastrike'] = {37, 157},
+  ['ultimateicestrike'] = {34, 156},
+  ['ultimateenergystrike'] = {31, 155},
+  ['ultimateflamestrike'] = {28, 154},
+  ['strongterrastrike'] = {36, 153},
+  ['strongicestrike'] = {33, 152},
+  ['strongenergystrike'] = {30, 151},
+  ['strongflamestrike'] = {27, 150},
+  ['lightning'] = {51, 149},
+  ['physicalstrike'] = {17, 148},
+  ['curecurse'] = {11, 147},
+  ['curseelectrification'] = {14, 146},
+  ['cureburning'] = {13, 145},
+  ['curebleeding'] = {12, 144},
+  ['holyflash'] = {53, 143},
+  ['envenom'] = {58, 142},
+  ['inflictwound'] = {57, 141},
+  ['electrify'] = {56, 140},
+  ['curse'] = {54, 139},
+  ['ignite'] = {55, 138},
+  ['sharpshooter'] = {121, 135},
+  ['swiftfoot'] = {119, 134},
+  ['bloodrage'] = {96, 133},
+  ['protector'] = {122, 132},
+  ['charge'] = {98, 131},
+  ['holymissile'] = {76, 130},
+  ['enchantparty'] = {113, 129},
+  ['healparty'] = {126, 128},
+  ['protectparty'] = {123, 127},
+  ['trainparty'] = {120, 126},
+  ['divinehealing'] = {2, 125},
+  ['divinecaldera'] = {40, 124},
+  ['woundcleansing'] = {3, 123},
+  ['divinemissile'] = {39, 122},
+  ['icewave'] = {45, 121},
+  ['terrawave'] = {47, 120},
+  ['rageoftheskies'] = {52, 119},
+  ['eternalwinter'] = {50, 118},
+  ['thunderstorm'] = {63, 117},
+  ['stoneshower'] = {65, 116},
+  ['avalanche'] = {92, 115},
+  ['icicle'] = {75, 114},
+  ['terrastrike'] = {35, 113},
+  ['icestrike'] = {32, 112},
+  ['etherealspear'] = {18, 111},
+  ['enchantspear'] = {104, 110},
+  ['whirlwindthrow'] = {19, 107},
+  ['groundshaker'] = {25, 106},
+  ['fierceberserk'] = {22, 105},
+  ['wildgrowth'] = {61, 94},
+  ['challenge'] = {97, 93},
+  ['poisonbomb'] = {70, 91},
+  ['cancelinvisibility'] = {95, 90},
+  ['flamestrike'] = {26, 89},
+  ['energystrike'] = {29, 88},
+  ['deathstrike'] = {38, 87},
+  ['magicwall'] = {72, 86},
+  ['healfriend'] = {8, 84},
+  ['animatedead'] = {93, 83},
+  ['masshealing'] = {9, 82},
+  ['levitate'] = {125, 81},
+  ['berserk'] = {21, 80},
+  ['desintegrate'] = {88, 78},
+  ['stalagmite'] = {66, 77},
+  ['magicrope'] = {105, 76},
+  ['ultimatelight'] = {115, 75},
+  ['annihilation'] = {24, 62},
+  ['brutalstrike'] = {23, 61},
+  ['frontsweep'] = {20, 59},
+  ['strongetherealspear'] = {59, 57},
+  ['wrathofnature'] = {48, 56},
+  ['energybomb'] = {86, 55},
+  ['paralyze'] = {71, 54},
+  ['conjurearrow'] = {106, 51},
+  ['soulfire'] = {67, 50},
+  ['explosivearrow'] = {109, 49},
+  ['invisible'] = {94, 45},
+  ['magicshield'] = {124, 44},
+  ['strongicewave'] = {46, 43},
+  ['food'] = {99, 42},
+  ['stronghaste'] = {102, 39},
+  ['creatureillusion'] = {100, 38},
+  ['salvation'] = {60, 36},
+  ['energywall'] = {84, 33},
+  ['poisonwall'] = {68, 32},
+  ['antidote'] = {89, 31},
+  ['destroyfield'] = {87, 30},
+  ['curepoison'] = {10, 29},
+  ['firewall'] = {80, 28},
+  ['energyfield'] = {85, 27},
+  ['poisonfield'] = {69, 26},
+  ['firefield'] = {81, 25},
+  ['hellscore'] = {49, 24},
+  ['greatenergybeam'] = {42, 23},
+  ['energybeam'] = {41, 22},
+  ['suddendeath'] = {64, 21},
+  ['findperson'] = {114, 20},
+  ['firewave'] = {44, 19},
+  ['explosion'] = {83, 18},
+  ['firebomb'] = {82, 17},
+  ['greatfireball'] = {78, 16},
+  ['fireball'] = {79, 15},
+  ['chameleon'] = {91, 14},
+  ['energywave'] = {43, 13},
+  ['convincecreature'] = {90, 12},
+  ['greatlight'] = {116, 11},
+  ['light'] = {117, 10},
+  ['summoncreature'] = {118, 9},
+  ['heavymagicmissile'] = {77, 8},
+  ['lightmagicmissile'] = {73, 7},
+  ['haste'] = {101, 6},
+  ['ultimatehealingrune'] = {62, 5},
+  ['intensehealingrune'] = {74, 4},
+  ['ultimatehealing'] = {1, 3},
+  ['intensehealing'] = {7, 2},
+  ['lighthealing'] = {6, 1},
+
+  ['knightsummon'] = {143, 194},
+  ['druidsummon'] = {144, 197},
+  ['paladinsummon'] = {145, 195},
+  ['sorcerersummon'] = {146, 196},
+  ['exanavita'] = {147, 245},
+
+  ['lesseretherealspear'] = {160, 270},
+  ['lesserfrontsweep'] = {161, 271},
+
+  -- Novas spells de Monk
+  ['spiritmend'] = {162, 273},
+  ['virtueofharmony'] = {163, 274},
+  ['virtueofjustice'] = {164, 275},
+  ['virtueofsustain'] = {165, 276},
+  ['mentorother'] = {166, 277},
+  ['enlightenparty'] = {167, 278},
+  ['focusharmony'] = {168, 279},
+  ['balancedbrawl'] = {169, 280},
+  ['focusserenity'] = {170, 281},
+  ['summoncreatureem'] = {171, 282},
+  ['avatarofbalance'] = {172, 283},
+  ['swiftjab'] = {173, 284},
+  ['doublejab'] = {174, 285},
+  ['forcefuluppercut'] = {175, 286},
+  ['flurryofblows'] = {176, 287},
+  ['chainedpenance'] = {177, 288},
+  ['greaterflurryofblows'] = {178, 289},
+  ['mysticrepulse'] = {179, 290},
+  ['tigerclash'] = {180, 291},
+  ['greatertigerclash'] = {181, 292},
+  ['devastatingknockout'] = {182, 293},
+  ['sweepingtakedown'] = {183, 294},
+  ['spiritualoutburst'] = {184, 295},
+  ['massspiritmend'] = {185, 296},
+  ['restorebalance'] = {186, 297}
+}
+
 VocationNames = {
     [0] = 'None',
     [1] = 'Sorcerer',
@@ -319,6 +676,17 @@ function Spells.getSpellList()
         table.insert(spells, spell)
     end
     return spells
+end
+
+function Spells.getSpellByClientId(id)
+  for profile, data in pairs(SpellInfo) do
+      for k, spell in pairs(data) do
+          if spell.id == id then
+              return spell, profile, k
+          end
+      end
+  end
+  return nil
 end
 
 function Spells.getSpellByName(name)

@@ -41,7 +41,6 @@ end
 function display(deathType, penalty)
     displayDeadMessage()
     openWindow(deathType, penalty)
-    scheduleReconnect()
 end
 
 function displayDeadMessage()
@@ -78,11 +77,19 @@ function openWindow(deathType, penalty)
     local cancelButton = deathController.ui:getChildById('buttonCancel')
 
     local okFunc = function()
-        CharacterList.doLogin()
+        local protocolGame = g_game.getProtocolGame and g_game:getProtocolGame() or nil
+        if protocolGame and protocolGame.sendEnterGame then
+            protocolGame:sendEnterGame()
+        end
         deathController.ui = destroyWindows()
     end
     local cancelFunc = function()
         g_game.safeLogout()
+        deathController:scheduleEvent(function()
+            if g_game.isOnline() then
+                g_game.forceLogout()
+            end
+        end, 250, 'deathCancelForceLogout')
         deathController.ui = destroyWindows()
     end
 

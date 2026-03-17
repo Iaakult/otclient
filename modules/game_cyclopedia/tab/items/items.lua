@@ -853,6 +853,7 @@ function Cyclopedia.internalCreateItem(data)
         local internalData = g_things.getThingType(itemId, ThingCategoryItem)
 
         if oldSelected then
+            oldSelected:setChecked(false)
             oldSelected:setBackgroundColor("#00000000")
         end
 
@@ -882,7 +883,17 @@ function Cyclopedia.internalCreateItem(data)
             UI.InfoBase.ResultGoldBase.Rarity:setImageSource("")
             UI.SelectedItem.Rarity:setImageSource("")
         end
+        widget:setChecked(true)
         widget:setBackgroundColor("#585858")
+
+        if UI.ItemListBase and UI.ItemListBase.List then
+            if UI.ItemListBase.List.focusChild then
+                UI.ItemListBase.List:focusChild(widget, KeyboardFocusReason)
+            end
+            if UI.ItemListBase.List.ensureChildVisible then
+                UI.ItemListBase.List:ensureChildVisible(widget)
+            end
+        end
        
         if modules.game_quickloot.QuickLoot.data.filter == 2 then
             UI.InfoBase.quickLootCheck:setText("Loot when Quick Looting")
@@ -1058,6 +1069,90 @@ function Cyclopedia.selectItemCategory(id)
         UI.H1Button:disable()
         UI.H2Button:disable()
     end
+end
+
+local function selectItemWidgetById(itemId)
+    if not UI or not UI.ItemListBase or not UI.ItemListBase.List then
+        return false
+    end
+
+    for _, widget in pairs(UI.ItemListBase.List:getChildren()) do
+        if tonumber(widget:getId()) == itemId and widget.onClick then
+            if UI.ItemListBase.List.ensureChildVisible then
+                UI.ItemListBase.List:ensureChildVisible(widget)
+            end
+            widget:onClick()
+            return true
+        end
+    end
+
+    return false
+end
+
+function Cyclopedia.Items.selectItemById(itemId)
+    itemId = tonumber(itemId)
+    if not itemId or itemId <= 0 then
+        return false
+    end
+
+    if not UI or not UI:isVisible() or not UI.CategoryList then
+        return false
+    end
+
+    local thingType = g_things.getThingType(itemId, ThingCategoryItem)
+    if not thingType then
+        return false
+    end
+
+    local marketData = thingType:getMarketData()
+    if not marketData or table.empty(marketData) or not marketData.category then
+        return false
+    end
+
+    for _, categoryWidget in pairs(UI.CategoryList:getChildren()) do
+        if tonumber(categoryWidget:getId()) == tonumber(marketData.category) and categoryWidget.onClick then
+            categoryWidget:onClick()
+            break
+        end
+    end
+
+    if selectItemWidgetById(itemId) then
+        return true
+    end
+
+    if marketData.name and marketData.name ~= "" then
+        Cyclopedia.ItemSearch(marketData.name, false)
+        return selectItemWidgetById(itemId)
+    end
+
+    return false
+end
+
+function Cyclopedia.Items.openItem(itemId)
+    itemId = tonumber(itemId)
+    if not itemId or itemId <= 0 then
+        return false
+    end
+
+    if not modules.game_cyclopedia or not modules.game_cyclopedia.show then
+        return false
+    end
+
+    modules.game_cyclopedia.show("items")
+    local selected = Cyclopedia.Items.selectItemById(itemId)
+
+    -- Force re-selection after UI/category refresh events so the row stays highlighted and visible.
+    scheduleEvent(function()
+        Cyclopedia.Items.selectItemById(itemId)
+    end, 60)
+    scheduleEvent(function()
+        Cyclopedia.Items.selectItemById(itemId)
+    end, 180)
+
+    if selected then
+        return true
+    end
+    return true
 end
 
 function Cyclopedia.loadItemsCategories()

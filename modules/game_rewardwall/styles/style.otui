@@ -48,10 +48,27 @@ ItemReward < UIWidget
 RewardButton < UIWidget
   size: 66 20
   image-source: /game_rewardwall/images/rewardButton
-  image-clip: 0 20 66 20
+  image-clip: 0 0 66 20
+
+  UIWidget
+    id: checkmark
+    anchors.centerIn: parent
+    size: 26 13
+    image-source: /game_rewardwall/images/icon-checkmark
+    phantom: true
+    visible: false
+
+  $on:
+    image-source: /images/ui/test/button-verydarkgrey-down
+    image-clip: 0 0 0 0
+    checkmark:
+      visible: true
+
   $!on:
     image-source: /game_rewardwall/images/rewardButton
     image-clip: 0 0 66 20
+    checkmark:
+      visible: false
 
 RewardButton3 < UIButton
   font: verdana-11px-antialised
@@ -97,19 +114,36 @@ RewardButton3 < UIButton
     margin-right:2
     margin-bottom:2
 
+RestingAreaMiniPanel < MiniPanel
+  image-source: /images/ui/t2pixel-up-frame-borderimage
+  image-border: 3
+  image-border-top: 22
+  padding-left: 6
+  padding-bottom: 6
+  padding-top: 15
+  padding-right: 6
+
+DailyRewardsMiniPanel < MiniPanel
+  image-source: /images/ui/t2pixel-up-frame-borderimage
+  image-border: 3
+  image-border-top: 22
+  padding-left: 6
+  padding-bottom: 6
+  padding-top: 25
+  padding-right: 6
+
 
 imgBonuses < UIWidget
-  border-width-top: 1
-  border-color-top: black
-  border-width-left: 1
-  border-color-left: black
-  border-width-bottom: 1
-  border-color-bottom: #747474
-  border-width-right: 1
-  border-color-right: #747474
-  image-source: /images/ui/test/button-verydarkgrey-down
+  image-source: /images/ui/item66
+  image-auto-resize: false
+  image-size: 66 68
+  image-offset-y: 2
   icon-source: /game_rewardwall/images/icon-restingareabonuseslevels
-  size: 64 70
+  size: 66 60
+  margin-left: 2
+  margin-right: 2
+  icon-align: center
+  icon-size: 42 42
 
   UIWidget
     id:ditherpattern
@@ -151,13 +185,15 @@ OfferBuyPrice < FlatPanel
     icon: /images/store/coin_second
 
 GoldLabel2 < UIWidget
-  image-source: /images/ui/test/button-verydarkgrey-down
-  margin: 1
-  
+  size: 66 20
+  image-source: /images/ui/item66
+  margin: 0
+
   UIWidget
     id: gold
     anchors.right: parent.right
     anchors.verticalCenter: parent.verticalCenter
+    margin-top: -1
     image-source: /images/game/prey/prey_gold
     tooltip: Gold Coins
     phantom: true
@@ -167,8 +203,104 @@ GoldLabel2 < UIWidget
     margin-right: 5
     anchors.left: parent.left
     anchors.verticalCenter: parent.verticalCenter
+    margin-top: -1
     text-align: center
     phantom: true
+
+GoldLabel2Daily < UIWidget
+  size: 66 22
+  anchors.centerIn: parent
+
+  image-auto-resize: false
+
+  $on:
+    image-source: /images/ui/item66
+    image-border: 3
+
+  $!on:
+    image-source: none
+
+  UIWidget
+    id: content
+    anchors.fill: parent
+
+    Label
+      id: strikeText
+      anchors.right: text.left
+      anchors.verticalCenter: text.verticalCenter
+      margin-right: 9
+      text-align: right
+      margin-top: 1
+      text-auto-resize: true
+      font: Verdana-Strikethrough-11px
+      color: #909090
+      opacity: 0.7
+      text: 1
+      phantom: true
+      visible: false
+
+    Label
+      id: text
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      text-align: center
+      margin-top: -2
+      text-auto-resize: true
+      phantom: true
+
+    UIWidget
+      id: gold
+      size: 12 12
+      anchors.left: text.right
+      anchors.verticalCenter: text.verticalCenter
+      margin-left: 27
+      margin-top: 1
+      image-source: /images/game/prey/prey_gold
+      tooltip: Gold Coins
+      phantom: true
+
+GoldLabel2DailyOptions < UIWidget
+  size: 66 22
+  anchors.centerIn: parent
+
+  image-auto-resize: false
+
+  $on:
+    image-source: /images/ui/item66
+    image-border: 3
+
+  $!on:
+    image-source: none
+
+  UIWidget
+    id: content
+    anchors.fill: parent
+
+    Label
+      id: text
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.verticalCenter: parent.verticalCenter
+      margin-left: -7
+      text-align: center
+      margin-top: -2
+      text-auto-resize: true
+      phantom: true
+
+    UIWidget
+      id: gold
+      size: 12 12
+      anchors.left: text.right
+      anchors.verticalCenter: text.verticalCenter
+      margin-left: 2
+      margin-top: 1
+      image-source: /images/game/prey/prey_gold
+      tooltip: Gold Coins
+      phantom: true
+
+GoldLabel2DailyShrineCost < GoldLabel2Daily
+  strikeText:
+    visible: true
+    margin-right: 3
 TESDTSTST < Panel
   id: actions
   size: 68 95

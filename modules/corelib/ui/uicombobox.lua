@@ -20,7 +20,10 @@ end
 function UIComboBox:clearOptions()
     self.options = {}
     self.currentIndex = -1
-    self:clearText()
+end
+
+function UIComboBox:getOptionsCount()
+  return #self.options
 end
 
 function UIComboBox:isOption(text)

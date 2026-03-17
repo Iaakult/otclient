@@ -377,12 +377,7 @@ function onChooseItemMouseRelease(self, mousePosition, mouseButton)
 
     show()
 
-    -- Restore cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.restoreMouseCursor()
-    else
-        g_mouse.popCursor('target')
-    end
+    g_mouse.popCursor('target')
     self:ungrabMouse()
     return true
 end
@@ -392,12 +387,7 @@ function startChooseItem()
         return
     end
     mouseGrabberWidget:grabMouse()
-    -- Use native cursor when enabled, otherwise use custom cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.setSystemCursor('cross')
-    else
-        g_mouse.pushCursor('target')
-    end
+    g_mouse.pushCursor('target')
     hide()
 end
 

@@ -1,9 +1,16 @@
 .reward-wall-window {
   position: relative;
-  width: 541px;
+  width: 506px;
   height: 495px;
   display: block;
-  color: #929292;
+  color: #c7c7c7;
+  ttf-font: verdana-bold;
+  font: Verdana Bold-11px;
+}
+
+.reward-wall-window button {
+  font: cipsoftFont;
+  color: #e4e4e4;
 }
 
 .history-panel {
@@ -25,27 +32,69 @@
   margin-top: -5px;
 }
 
+#restingAreaPanel {
+  width: 529px;
+  height: 126px;
+  margin-left: 2px;
+  margin-top: 0px;
+}
+
+#dailyRewardsPanel {
+  width: 529px;
+  height: 139px;
+  margin-left: 2px;
+  margin-top: 0px;
+}
+
 .resting-area-info {
-  margin-left: -10px;
-  height: 108px;
+  margin-left: -4px;
+  height: 112px;
   width: 108px;
 }
 
 .resting-area-icon {
-  margin-left: 44px;
-  width: 22px;
-  height: 55px;
+  margin-left: 10px;
+  width: 25px;
+  height: 49px;
+  font: Verdana Bold-11px;
   --image-size: 66 44;
+  --image-offset-y: 7;
   --image-fixed-ratio: true;
-  --text-offset: 25 -7;
+  --text-offset: 29 2;
 }
 
-.resting-area-time {
-  width: 22px;
-  height: 28px;
-  margin-left: 30;
+.resting-area-time-container {
+  width: 65px;
+  height: 20px;
+  margin-left: 5;
+  position: relative;
+  --fixed-size: true;
   --image-border: 3;
   --image-source: /images/ui/test/button-verydarkgrey-down;
+}
+
+.resting-area-time-bar {
+  position: absolute;
+  left: 1;
+  top: 1;
+  right: 0;
+  bottom: 1;
+  --image-source: /game_rewardwall/images/progressbar-orange-large;
+  --image-auto-resize: true;
+}
+
+.resting-area-time-cooldown {
+  width: 65px;
+  height: 20px;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  --text-auto-resize: false;
+  color: #dfdfdf;
+  font: Verdana Bold-11px;
 }
 
 #bonusIcon1 {
@@ -79,24 +128,35 @@
 }
 
 .resting-area-gold {
-  size: 22 20;
-  margin-left: 27;
+  width: 65px;
+  height: 20px;
+  margin-left: 5;
+  --fixed-size: true;
+  font: Verdana Bold-11px;
+}
+
+.bonus-warning-container {
+  margin-left: 70px;
+  margin-top: 5px;
+  width: 395px;
 }
 
 .bonus-icons-container {
-  margin-left: 90px;
-  border-color: #00000077;
-  height: 71px;
+  margin-left: 0;
+  margin-top: 0;
+  width: 395px;
+  height: 70px;
   --phantom: true;
 }
 
 .premium-message {
-  border-color: #00000077;
   height: 38px;
-  width: 400px;
-  margin-top: 70px;
-  margin-left: 111px;
+  width: 100%;
+  margin-top: -6;
   --text-auto-resize: false;
+  white-space: pre-line;
+  text-align: center;
+  display: block;
 }
 
 .daily-rewards-panel {
@@ -105,9 +165,9 @@
 }
 
 .reward-item {
-  width: 68px;
+  width: 66px;
   height: 95px;
-  margin-top: -9px;
+  margin-top: -5px;
 }
 
 .reward-button {
@@ -118,6 +178,7 @@
 .reward-label {
   width: 68px;
   height: 22px;
+  font: Verdana Bold-11px;
 }
 
 .reward-arrow {
@@ -130,7 +191,8 @@
 }
 
 .reward-arrow-loop {
-  --image-offset: -466 90;
+  margin-bottom: 7px;
+  --image-offset: -464 90;
   --image-size: 435 13;
   --phantom: true;
 }
@@ -195,6 +257,7 @@
   width: 30px;
   height: 22px;
   margin-top: 120px;
+  font: Verdana Bold-11px;
 }
 
 .footer-gold-2 {
@@ -202,6 +265,7 @@
   width: 50px;
   margin-left: 5px;
   margin-top: 10px;
+  font: Verdana Bold-11px;
 }
 
 .instant-reward-button {
@@ -225,8 +289,9 @@
 }
 
 .imgBonusesCss {
-  width: 60px;
-  height: 70px;
+  width: 66px;
+  height: 60px;
+  margin-left: 1px;
 }
 
 

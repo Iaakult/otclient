@@ -270,5 +270,10 @@ controller:registerEvents(g_game, {
         if version >= 1500 then
             g_game.enableFeature(GameVocationMonk)
         end
+
+        local osType = g_game.getOs()
+        if osType == 10 or osType == 11 or osType == 12 then
+            g_game.enableFeature(GameSequencedPackets)
+        end
     end
 })

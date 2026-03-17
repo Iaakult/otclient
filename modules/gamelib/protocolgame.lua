@@ -38,7 +38,7 @@ function ProtocolGame:onExtendedOpcode(opcode, buffer)
             end)
             extendedJSONData[opcode] = nil
             if not json_status then
-                error('Invalid data in extended JSON opcode (' .. json_status .. '): ' .. json_data)
+                g_logger.error('Invalid data in extended JSON opcode: ' .. tostring(json_data))
                 return
             end
             callback(self, opcode, json_data)

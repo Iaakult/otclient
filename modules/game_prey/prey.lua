@@ -89,8 +89,8 @@ function init()
     preyWindow:hide()
     preyTracker = g_ui.createWidget('PreyTracker', modules.game_interface.getRightPanel())
     preyTracker:setup()
-    preyTracker:setContentMaximumHeight(110)
-    preyTracker:setContentMinimumHeight(70)
+    preyTracker:setContentMaximumHeight(140)
+    preyTracker:setContentMinimumHeight(85)
     preyTracker:hide()
 
     -- Hide buttons similar to unjustifiedpoints implementation
@@ -523,13 +523,23 @@ function onPreyLocked(slot, unlockState, timeUntilFreeReroll, wildcards)
     setPickSpecificPreyBonus(slot)
 
     -- tracker
-    slot = 'slot' .. (slot + 1)
-    local tracker = preyTracker.contentsPanel[slot]
+    local tracker = preyTracker.contentsPanel['slot' .. (slot + 1)]
     if tracker then
-        tracker:hide()
-        preyTracker:setContentMaximumHeight(preyTracker:getHeight())
+        tracker:show()
+        tracker.creature:hide()
+        tracker.noCreature:show()
+        tracker.creatureName:setText('Locked')
+        tracker.time:setPercent(0)
+        tracker.preyType:setImageSource('/images/game/prey/prey_no_bonus')
+        for i, element in pairs({ tracker.creatureName, tracker.creature, tracker.preyType, tracker.time }) do
+            element:setTooltip('Locked Prey. \n\nClick in this window to open the prey dialog.')
+            element.onClick = function()
+                show()
+            end
+        end
     end
     -- main window
+    slot = 'slot' .. (slot + 1)
     local prey = preyWindow[slot]
     if not prey then
         return
@@ -544,6 +554,7 @@ function onPreyInactive(slot, timeUntilFreeReroll, wildcards)
     -- tracker
     local tracker = preyTracker.contentsPanel['slot' .. (slot + 1)]
     if tracker then
+        tracker:show()
         tracker.creature:hide()
         tracker.noCreature:show()
         tracker.creatureName:setText('Inactive')
@@ -1630,6 +1641,7 @@ function onPreyActive(slot, currentHolderName, currentHolderOutfit, bonusType, b
     currentHolderName = capitalFormatStr(currentHolderName)
     local percent = (timeLeft / (2 * 60 * 60)) * 100
     if tracker then
+        tracker:show()
         tracker.creature:show()
         tracker.noCreature:hide()
         tracker.creatureName:setText(currentHolderName)
@@ -1695,6 +1707,7 @@ function onPreySelection(slot, names, outfits, timeUntilFreeReroll, wildcards, o
     -- tracker
     local tracker = preyTracker.contentsPanel['slot' .. (slot + 1)]
     if tracker then
+        tracker:show()
         tracker.creature:hide()
         tracker.noCreature:show()
         tracker.creatureName:setText('Inactive')
@@ -1757,6 +1770,7 @@ function onPreySelectionChangeMonster(slot, names, outfits, bonusType, bonusValu
     -- tracker
     local tracker = preyTracker.contentsPanel['slot' .. (slot + 1)]
     if tracker then
+        tracker:show()
         tracker.creature:hide()
         tracker.noCreature:show()
         tracker.creatureName:setText('Inactive')
@@ -1816,6 +1830,23 @@ end
 
 function onPreyListSelection(slot, races, nextFreeReroll, wildcards, option)
     setTimeUntilFreeReroll(slot, nextFreeReroll)
+
+    -- tracker
+    local tracker = preyTracker.contentsPanel['slot' .. (slot + 1)]
+    if tracker then
+        tracker:show()
+        tracker.creature:hide()
+        tracker.noCreature:show()
+        tracker.creatureName:setText('Inactive')
+        tracker.time:setPercent(0)
+        tracker.preyType:setImageSource('/images/game/prey/prey_no_bonus')
+        for i, element in pairs({ tracker.creatureName, tracker.creature, tracker.preyType, tracker.time }) do
+            element:setTooltip('Inactive Prey. \n\nClick in this window to open the prey dialog.')
+            element.onClick = function()
+                show()
+            end
+        end
+    end
 
     local prey = getPreySlotWidget(slot)
     if not prey then

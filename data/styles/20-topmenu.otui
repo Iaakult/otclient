@@ -46,7 +46,63 @@ largeToggleButton < UIButton
 
   $on:
     image-clip: 0 20 108 20
-	
+
+BattlePassStoreButton < Button
+  size: 108 20
+  image-source: /images/ui/buttons-blue
+  image-clip: 0 0 43 20
+  image-border: 1
+  image-color: #ffffffff
+  icon-align: center
+  icon-offset: -36 0
+  text-align: center
+  text-offset: 8 0
+  padding: 0
+  color: #c2c2c2
+
+  $hover !disabled:
+    image-clip: 0 0 43 20
+    image-color: #eaeaeaff
+
+  $pressed:
+    image-clip: 0 0 43 20
+    image-color: #d0d0d0ff
+    icon-offset: -36 0
+    text-offset: 8 0
+
+  $on:
+    image-clip: 0 0 43 20
+    image-color: #ffffffff
+    icon-offset: -36 0
+    text-offset: 8 0
+
+  $checked:
+    image-clip: 0 0 43 20
+    image-color: #ffffffff
+    icon-offset: -36 0
+    text-offset: 8 0
+
+BattlePassStoreButtonWrapper < UIWidget
+  size: 84 20
+  focusable: false
+  clipping: false
+
+  UIWidget
+    id: battlepassBorderFx
+    anchors.fill: parent
+    margin-top: -1.2
+    margin-bottom: -1.2
+    margin-left: -1.2
+    margin-right: -1.2
+    image-source: /images/ui/buttons-blue
+    phantom: true
+    focusable: false
+    opacity: 0
+
+  BattlePassStoreButton
+    id: button
+    anchors.fill: parent
+
 MainToggleButton < UIButton
   size: 20 20
   image-source: /images/options/button_empty
@@ -58,6 +114,23 @@ MainToggleButton < UIButton
 
   $on:
     image-clip: 20 0 20 20
+
+BattlePassSpecialButton < MainToggleButton
+  size: 40 20
+  image-source: /images/options/blue_large
+  image-clip: 0 0 108 20
+  image-border: 3
+  icon-offset: 0 0
+
+  $hover !disabled:
+    image-color: #ffffffcc
+
+  $pressed:
+    image-clip: 0 20 108 20
+    icon-offset: 1 1
+
+  $on:
+    image-clip: 0 20 108 20
 
 TopMenuButtonsPanel < Panel
   layout:

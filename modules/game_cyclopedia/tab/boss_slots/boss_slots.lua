@@ -284,14 +284,19 @@ function Cyclopedia.setActiveSlot(widget, slot, slotData, data, bossId)
     widget.ActivedBoss.EquipmentLabel:setText(string.format("Equipment loot bonus: %d%%", slotData.lootBonus))
     widget.ActivedBoss.Value:setText(comma_value(slotData.removePrice))
 
-    if g_game.getLocalPlayer():getResourceBalance(1) ~= nil then
-        if slotData.removePrice > g_game.getLocalPlayer():getResourceBalance(1) then
-            widget.ActivedBoss.Value:setColor("#D33C3C")
-            widget.ActivedBoss.RemoveButton:setEnabled(false)
-        else
-            widget.ActivedBoss.Value:setColor("#C0C0C0")
-            widget.ActivedBoss.RemoveButton:setEnabled(true)
-        end
+    local player = g_game.getLocalPlayer()
+    local totalGold = 0
+    if player then
+        -- Boss slot remove cost should use total available gold (bank + inventory).
+        totalGold = player:getTotalMoney() or 0
+    end
+
+    if slotData.removePrice > totalGold then
+        widget.ActivedBoss.Value:setColor("#D33C3C")
+        widget.ActivedBoss.RemoveButton:setEnabled(false)
+    else
+        widget.ActivedBoss.Value:setColor("#C0C0C0")
+        widget.ActivedBoss.RemoveButton:setEnabled(true)
     end
 
     widget.ActivedBoss.RemoveButton.onClick = function()

@@ -250,6 +250,13 @@ end
 function onGameStart()
     show()
 
+    local player = g_game.getLocalPlayer()
+    if player then
+        LoadedPlayer:setId(player:getId())
+        LoadedPlayer:setName(player:getName())
+        LoadedPlayer:setVocation(player:getVocation())
+    end
+
     leftIncreaseSidePanels:setEnabled(not modules.client_options.getOption('showLeftExtraPanel'))
     if g_platform.isMobile() then
         leftDecreaseSidePanels:setEnabled(false)
@@ -486,12 +493,7 @@ function onMouseGrabberRelease(self, mousePosition, mouseButton)
     end
 
     selectedThing = nil
-    -- Restore cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.restoreMouseCursor()
-    else
-        g_mouse.popCursor('target')
-    end
+    g_mouse.popCursor('target')
     self:ungrabMouse()
     return true
 end
@@ -544,12 +546,7 @@ function startUseWith(thing)
     selectedType = 'use'
     selectedThing = thing
     mouseGrabberWidget:grabMouse()
-    -- Use native cursor when enabled, otherwise use custom cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.setSystemCursor('cross')
-    else
-        g_mouse.pushCursor('target')
-    end
+    g_mouse.pushCursor('target')
 end
 
 function startTradeWith(thing)
@@ -566,12 +563,7 @@ function startTradeWith(thing)
     selectedType = 'trade'
     selectedThing = thing
     mouseGrabberWidget:grabMouse()
-    -- Use native cursor when enabled, otherwise use custom cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.setSystemCursor('cross')
-    else
-        g_mouse.pushCursor('target')
-    end
+    g_mouse.pushCursor('target')
 end
 
 function isMenuHookCategoryEmpty(category)
@@ -692,6 +684,21 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
         menu:addOption(tr('Trade with ...'), function()
             startTradeWith(lookThing)
         end)
+        if modules.game_cyclopedia and modules.game_cyclopedia.show then
+            menu:addOption(tr('Cyclopedia'), function()
+                local itemId = lookThing:getId()
+                if not itemId or itemId <= 0 then
+                    return
+                end
+
+                local cyclopediaItems = modules.game_cyclopedia.Cyclopedia and modules.game_cyclopedia.Cyclopedia.Items
+                if cyclopediaItems and cyclopediaItems.openItem then
+                    cyclopediaItems.openItem(itemId)
+                else
+                    modules.game_cyclopedia.show("items")
+                end
+            end)
+        end
     end
 
     if lookThing then
@@ -754,12 +761,6 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
                 shortcut = nil
             end
             if creatureThing:getPosition().z == localPosition.z then
-                if creatureThing:isNpc() and g_game.getClientVersion() < 1511 then
-                    menu:addOption(tr('Talk'), function()
-                        g_game.talk("hi")
-                    end)
-                end
-
                 if g_game.getAttackingCreature() ~= creatureThing then
                     menu:addOption(tr('Attack'), function()
                         g_game.attack(creatureThing)
@@ -809,6 +810,18 @@ function createThingMenu(menuPosition, lookThing, useThing, creatureThing)
                     menu:addOption(tr('Ignore') .. ' ' .. creatureName, function()
                         modules.game_console.addIgnoredPlayer(creatureName)
                     end)
+                end
+
+                if modules.game_guildmanagement then
+                    if modules.game_guildmanagement.canInvite(creatureName) then
+                        menu:addOption(tr('Invite to Guild'), function()
+                            modules.game_guildmanagement.invitePlayer(creatureName)
+                        end)
+                    elseif modules.game_guildmanagement.canKick(creatureName) then
+                        menu:addOption(tr('Kick from Guild'), function()
+                            modules.game_guildmanagement.kickPlayer(creatureName)
+                        end)
+                    end
                 end
 
                 local localPlayerShield = localPlayer:getShield()
@@ -935,31 +948,6 @@ end
 function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, useThing, creatureThing, attackCreature)
     local keyboardModifiers = g_keyboard.getModifiers()
 
-    local smartLeftClick = modules.client_options.getOption('smartLeftClick')
-    local classicControls = modules.client_options.getOption('classicControl')
-
-    -- Classic controls: right-click on NPC says "hi"
-    if creatureThing and creatureThing:isNpc() and mouseButton == MouseRightButton and 
-    keyboardModifiers == KeyboardNoModifier and 
-    g_game.getClientVersion() < 1511 then
-        -- In classic controls, always allow NPC interaction
-        -- In non-classic controls, check the talkOnRightClick option
-        if classicControls or modules.client_options.getOption('talkOnRightClick') then
-            local player = g_game.getLocalPlayer()
-            if player then
-                local playerPos = player:getPosition()
-                local npcPos = creatureThing:getPosition()
-                if playerPos.z == npcPos.z then
-                    local dist = math.max(math.abs(playerPos.x - npcPos.x), math.abs(playerPos.y - npcPos.y))
-                    if dist <= 3 then
-                        g_game.talk("hi")
-                        return true
-                    end
-                end
-            end
-        end
-    end
-
     if g_platform.isMobile() then
         if mouseButton == MouseRightButton then
             createThingMenu(menuPosition, lookThing, useThing, creatureThing)
@@ -1024,24 +1012,11 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
         if smartLeftClick and mouseButton == MouseLeftButton and keyboardModifiers == KeyboardNoModifier then
             local player = g_game.getLocalPlayer()
 
-            -- Handle NPCs first - they should not be attacked
-            if creatureThing and creatureThing:isNpc() and g_game.getClientVersion() < 1511 then
-                local playerPos = player:getPosition()
-                local npcPos = creatureThing:getPosition()
-                if playerPos.z == npcPos.z then
-                    local dist = math.max(math.abs(playerPos.x - npcPos.x), math.abs(playerPos.y - npcPos.y))
-                    if dist <= 3 then
-                        g_game.talk("hi")
-                        return true
-                    end
-                end
-            end
-
-            -- Handle creature attacks (but not NPCs)
-            if attackCreature and attackCreature ~= player and not attackCreature:isNpc() then
+            -- Handle creature attacks first
+            if attackCreature and attackCreature ~= player then
                 g_game.attack(attackCreature)
                 return true
-            elseif creatureThing and creatureThing ~= player and not creatureThing:isNpc() and autoWalkPos and creatureThing:getPosition().z == autoWalkPos.z then
+            elseif creatureThing and creatureThing ~= player and autoWalkPos and creatureThing:getPosition().z == autoWalkPos.z then
                 g_game.attack(creatureThing)
                 return true
             elseif useThing then
@@ -1181,11 +1156,11 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
             g_game.open(useThing)
             return true
-        elseif attackCreature and not attackCreature:isNpc() and g_keyboard.isAltPressed() and
+        elseif attackCreature and g_keyboard.isAltPressed() and
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
             g_game.attack(attackCreature)
             return true
-        elseif creatureThing and not creatureThing:isNpc() and autoWalkPos and creatureThing:getPosition().z == autoWalkPos.z and g_keyboard.isAltPressed() and
+        elseif creatureThing and autoWalkPos and creatureThing:getPosition().z == autoWalkPos.z and g_keyboard.isAltPressed() and
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
             g_game.attack(creatureThing)
             return true
@@ -1202,20 +1177,7 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
         if lootControlMode == 0 then
             -- Right click with no modifiers: main loot functionality
             if mouseButton == MouseRightButton and keyboardModifiers == KeyboardNoModifier then
-                -- Handle NPCs first - they should not be attacked
-                if creatureThing and creatureThing:isNpc() and g_game.getClientVersion() < 1511 then
-                    local playerPos = player:getPosition()
-                    local npcPos = creatureThing:getPosition()
-                    if playerPos.z == npcPos.z then
-                        local dist = math.max(math.abs(playerPos.x - npcPos.x), math.abs(playerPos.y - npcPos.y))
-                        if dist <= 3 then
-                            g_game.talk("hi")
-                            return true
-                        end
-                    end
-                end
-                
-                -- Handle creature attacks (match Smart Left-Click behavior)
+                -- Handle creature attacks first (match Smart Left-Click behavior)
                 if attackCreature and attackCreature ~= player then
                     g_game.attack(attackCreature)
                     return true
@@ -1287,20 +1249,7 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
         elseif lootControlMode == 1 then
             -- Right click with no modifiers: use or open containers
             if mouseButton == MouseRightButton and keyboardModifiers == KeyboardNoModifier then
-                -- Handle NPCs first - they should not be attacked
-                if creatureThing and creatureThing:isNpc() and g_game.getClientVersion() < 1511 then
-                    local playerPos = player:getPosition()
-                    local npcPos = creatureThing:getPosition()
-                    if playerPos.z == npcPos.z then
-                        local dist = math.max(math.abs(playerPos.x - npcPos.x), math.abs(playerPos.y - npcPos.y))
-                        if dist <= 3 then
-                            g_game.talk("hi")
-                            return true
-                        end
-                    end
-                end
-                
-                -- Handle creature attacks
+                -- Handle creature attacks first
                 if attackCreature and attackCreature ~= player then
                     g_game.attack(attackCreature)
                     return true
@@ -1376,20 +1325,7 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
 
             -- Right click for Loot: Left mode - use items instead of showing context menu
             if mouseButton == MouseRightButton and keyboardModifiers == KeyboardNoModifier then
-                -- Handle NPCs first - they should not be attacked
-                if creatureThing and creatureThing:isNpc() and g_game.getClientVersion() < 1511 then
-                    local playerPos = player:getPosition()
-                    local npcPos = creatureThing:getPosition()
-                    if playerPos.z == npcPos.z then
-                        local dist = math.max(math.abs(playerPos.x - npcPos.x), math.abs(playerPos.y - npcPos.y))
-                        if dist <= 3 then
-                            g_game.talk("hi")
-                            return true
-                        end
-                    end
-                end
-                
-                -- Handle creature attacks
+                -- Handle creature attacks first
                 if attackCreature and attackCreature ~= player then
                     g_game.attack(attackCreature)
                     return true
@@ -1440,11 +1376,11 @@ function processMouseAction(menuPosition, mouseButton, autoWalkPos, lookThing, u
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
             createThingMenu(menuPosition, lookThing, useThing, creatureThing)
             return true
-        elseif attackCreature and not attackCreature:isNpc() and g_keyboard.isAltPressed() and
+        elseif attackCreature and g_keyboard.isAltPressed() and
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
             g_game.attack(attackCreature)
             return true
-        elseif creatureThing and not creatureThing:isNpc() and autoWalkPos and creatureThing:getPosition().z == autoWalkPos.z and g_keyboard.isAltPressed() and
+        elseif creatureThing and autoWalkPos and creatureThing:getPosition().z == autoWalkPos.z and g_keyboard.isAltPressed() and
             (mouseButton == MouseLeftButton or mouseButton == MouseRightButton) then
             g_game.attack(creatureThing)
             return true
@@ -2059,4 +1995,102 @@ function toggleFocus(value, reason)
     gameLeftPanel:setFocusable(value)
     gameRightExtraPanel:setFocusable(value)
     gameLeftExtraPanel:setFocusable(value)
+end
+
+function addToPanels(uiWidget)
+  local right = getRightPanel()
+  local left = getLeftPanel()
+  uiWidget.onRemoveFromContainer = function(widget)
+    if left:isOn() then
+      if widget:getParent():getId() == 'gameRightPanel' then
+        if left:getEmptySpaceHeight() - widget:getHeight() >= 0 then
+          widget:setParent(left)
+        end
+      elseif widget:getParent():getId() == 'gameLeftPanel' then
+        if right:getEmptySpaceHeight() - widget:getHeight() >= 0 then
+          widget:setParent(right)
+        end
+      end
+    end
+  end
+
+  local widgetName = uiWidget:getId()
+  if string.find(widgetName, "widget") then
+    uiWidget:setHeight(uiWidget:getMinimumHeight())
+  end
+
+  local count = gameRightPanel:getChildCount()
+  local panels = {}
+
+  for i = count, 1, -1 do
+    local panel = gameRightPanel:getChildByIndex(i)
+    panels[#panels+1] = panel
+  end
+
+  local count = gameLeftPanel:getChildCount()
+  for i = 1, count do
+    local panel = gameLeftPanel:getChildByIndex(i)
+    panels[#panels+1] = panel
+  end
+
+  for _, panel in ipairs(panels) do
+    if configureWidgetOnPanel(uiWidget, panel) then
+      return true
+    end
+  end
+
+  local childrenIds = {"tradeWindow",}
+  if table.find(childrenIds, uiWidget:getId()) then
+    uiWidget:setHeight(uiWidget:getMinimumHeight())
+    for _, panel in ipairs(panels) do
+      if recalculateWidgetOnPanel(uiWidget, panel) then
+        return true
+      end
+    end
+  end
+
+  uiWidget:close()
+  modules.game_textmessage.displayFailureMessage(tr('There is no available space.'))
+  return false
+end
+
+function configureWidgetOnPanel(widget, panel)
+  local childsSize = 0
+  for _, child in pairs(panel:getChildren()) do
+    if child:isVisible() and widget:getId() ~= child:getId() then
+      childsSize = child:getHeight() + childsSize
+    end
+  end
+
+  local emptySize = panel:getHeight() - childsSize
+  if emptySize - widget:getHeight() >= 0 then
+    widget:setParent(panel)
+    widget.onClose = function()
+      local panel = widget:getParent()
+      if panel then
+        panel:removeChild(widget)
+      end
+    end
+    return true
+  end
+
+  local minimus = widget:getMinimumHeight()
+   if widget:getId():find("BattleWindow") then
+    minimus = 104
+  elseif widget:getId():find("minimapWindow") then
+    minimus = 200
+  end
+
+  if emptySize - minimus >= 0 then
+    widget:setParent(panel)
+    widget.onClose = function()
+      local panel = widget:getParent()
+      if panel then
+        panel:removeChild(widget)
+      end
+    end
+    return true
+  end
+
+  return false
 end

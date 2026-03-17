@@ -549,23 +549,13 @@ function onDropActionButton(self, mousePosition, mouseButton)
     if not g_ui.isMouseGrabbed() then
         return
     end
-    -- Restore cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.restoreMouseCursor()
-    else
-        g_mouse.popCursor('target')
-    end
+    g_mouse.popCursor('target')
     self:ungrabMouse()
 end
 
 function assignItemEvent(button)
     mouseGrabberWidget:grabMouse()
-    -- Use native cursor when enabled, otherwise use custom cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.setSystemCursor('cross')
-    else
-        g_mouse.pushCursor('target')
-    end
+    g_mouse.pushCursor('target')
     mouseGrabberWidget.onMouseRelease = function(self, mousePosition, mouseButton)
         onAssignItem(self, mousePosition, mouseButton, button)
     end
@@ -573,12 +563,7 @@ end
 
 function onAssignItem(self, mousePosition, mouseButton, button)
     mouseGrabberWidget:ungrabMouse()
-    -- Restore cursor
-    if modules.client_options and modules.client_options.getOption('nativeCursor') then
-        g_window.restoreMouseCursor()
-    else
-        g_mouse.popCursor('target')
-    end
+    g_mouse.popCursor('target')
     mouseGrabberWidget.onMouseRelease = onDropActionButton
 
     local clickedWidget = gameRootPanel:recursiveGetChildByPos(mousePosition, false)

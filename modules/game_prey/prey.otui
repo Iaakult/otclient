@@ -67,7 +67,7 @@ NoCreaturePanel < Panel
     size: 124 124
     anchors.top: parent.top
     anchors.left: parent.left
-    image-source: /images/ui/panel_flat
+    image-source: /images/ui/button-grey-down
     image-border: 1
 
     UIWidget
@@ -197,6 +197,7 @@ ActivePreyPanel < Panel
     anchors.top: prev.bottom
     margin-top: 5
     anchors.left: parent.left
+    image-source: /images/ui/button-grey-down
 
     CheckBox
       id: autoRerollCheck
@@ -217,6 +218,7 @@ ActivePreyPanel < Panel
     margin-left: 2
     anchors.bottom: prev.bottom
     anchors.right: parent.right
+    image-source: /images/ui/backdrop-dark-grey
 
   FlatPanel
     id: lockPrey
@@ -224,6 +226,7 @@ ActivePreyPanel < Panel
     anchors.top: prev.bottom
     margin-top: 5
     anchors.left: parent.left
+    image-source: /images/ui/button-grey-down
 
     CheckBox
       id: lockPreyCheck
@@ -244,6 +247,7 @@ ActivePreyPanel < Panel
     margin-left: 2
     anchors.bottom: prev.bottom
     anchors.right: parent.right
+    image-source: /images/ui/backdrop-dark-grey
 
 CreatureAndBonus < Panel
   size: 195 152
@@ -254,7 +258,7 @@ CreatureAndBonus < Panel
     anchors.top: parent.top
     anchors.left: parent.left
     size: 124 124
-    image-source: /images/ui/panel_flat
+    image-source: /images/ui/background
     image-border: 1
     padding: 5
 
@@ -264,6 +268,7 @@ CreatureAndBonus < Panel
     anchors.left: prev.right
     margin-left: 10
     anchors.bottom: prev.bottom
+    image-source: /images/ui/button-grey-down
     anchors.right: parent.right
 
     UIWidget
@@ -279,6 +284,7 @@ CreatureAndBonus < Panel
       anchors.left: parent.left
       anchors.right: parent.right
       margin-left: 10
+      image-source: /images/ui/background
       margin-right: 10
 
     Panel
@@ -307,6 +313,7 @@ CreatureAndBonus < Panel
 BonusReroll < FlatPanel
   padding: 2
   size: 55 92
+  image-source: /images/ui/button-grey-down
 
   UIButton
     id: selectPrey
@@ -326,6 +333,7 @@ BonusReroll < FlatPanel
     anchors.bottom: parent.bottom
     anchors.left: parent.left
     anchors.right: parent.right
+    image-source: /images/ui/backdrop-dark-grey
     height: 21
     margin-top: 2
 
@@ -384,6 +392,7 @@ InactivePreyPanel < Panel
     padding-left: 4
     padding-top: 4
     size: 195 195
+    image-source: /images/ui/button-grey-down
     layout:
       type: grid
       cell-size: 60 60
@@ -457,6 +466,7 @@ InactivePreyPanel < Panel
 ChoosePrey < FlatPanel
   size: 55 92
   padding: 10
+  image-source: /images/ui/button-grey-up
 
   UIButton
     id: choosePreyButton
@@ -474,6 +484,7 @@ ChoosePrey < FlatPanel
 SelectPreyCreature < FlatPanel
   padding: 2
   size: 70 92
+  image-source: /images/ui/button-grey-up
 
   UIButton
     id: pickSpecificPrey
@@ -489,6 +500,7 @@ SelectPreyCreature < FlatPanel
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.top: prev.bottom
+    image-source: /images/ui/backdrop-dark-grey
     margin-top: 2
 
 RerollButton < FlatPanel
@@ -497,6 +509,7 @@ RerollButton < FlatPanel
 
   FlatPanel
     id: button
+    image-source: /images/ui/button-grey-down
     size: 66 66
     padding: 2
     anchors.top: parent.top
@@ -574,6 +587,7 @@ PreyCreatureBox < UICheckBox
   border-width: 1
   border-color: #ffffff
   padding: 3
+  image-source: /images/ui/background
   @onClick: modules.game_prey.onItemBoxChecked(self)
 
   UICreature
@@ -584,14 +598,10 @@ PreyCreatureBox < UICheckBox
     margin-top: 3
 
   $checked on:
-    border-color: #ffffff
+    border-color: #363535
 
   $!checked:
     border-color: alpha
-
-  $!on:
-    image-color: #ffffff88
-    color: #aaaaaa88
 
 PreyCreatureListItem < UICheckBox
   height: 22
@@ -686,6 +696,7 @@ MainWindow
     margin-bottom: 10
     margin-top: 10
     text-wrap: true
+    image-source: /images/ui/button-grey-up
 
   HorizontalSeparator
     id: bottomSep
@@ -714,6 +725,7 @@ MainWindow
     anchors.left: prev.right
     margin-left: 10
     anchors.verticalCenter: closeButton.verticalCenter
+    image-source: /images/ui/backdrop-dark-grey
     size: 55 20
 
   UIButton
@@ -784,7 +796,7 @@ PreyCreature < Panel
 PreyTracker < MiniWindow
   id: preyTracker
   !text: tr('Prey')
-  height: 110
+  height: 130
   @onOpen: onMiniWindowOpen()
   @onClose: onMiniWindowClose()
   &save: true

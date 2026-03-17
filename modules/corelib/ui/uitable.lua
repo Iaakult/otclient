@@ -15,12 +15,12 @@ function UITable.create()
     table.headerColumns = {}
     table.dataSpace = nil
     table.rows = {}
-    table.rowBaseStyle = nil
+    table.rowBaseStyle = 'TableRow'
     table.columns = {}
     table.columnWidth = {}
-    table.columBaseStyle = nil
-    table.headerRowBaseStyle = nil
-    table.headerColumnBaseStyle = nil
+    table.columBaseStyle = 'TableColumn'
+    table.headerRowBaseStyle = 'TableHeaderRow'
+    table.headerColumnBaseStyle = 'TableHeaderColumn'
     table.selectedRow = nil
     table.defaultColumnWidth = 80
     table.sortColumn = -1
@@ -59,27 +59,35 @@ end
 -- Parse table related styles
 function UITable:onStyleApply(styleName, styleNode)
     for name, value in pairs(styleNode) do
-        if value ~= false then
-            if name == 'table-data' then
+        if name == 'table-data' then
+            if value ~= false and value ~= nil and tostring(value) ~= '' then
                 addEvent(function()
                     self:setTableData(self:getParent():getChildById(value))
                 end)
-            elseif name == 'column-style' then
-                addEvent(function()
-                    self:setColumnStyle(value)
-                end)
-            elseif name == 'row-style' then
-                addEvent(function()
-                    self:setRowStyle(value)
-                end)
-            elseif name == 'header-column-style' then
-                addEvent(function()
-                    self:setHeaderColumnStyle(value)
-                end)
-            elseif name == 'header-row-style' then
-                addEvent(function()
-                    self:setHeaderRowStyle(value)
-                end)
+            end
+        elseif name == 'column-style' then
+            if value == false or value == nil or tostring(value) == '' then
+                self.columBaseStyle = nil
+            else
+                self:setColumnStyle(value, true)
+            end
+        elseif name == 'row-style' then
+            if value == false or value == nil or tostring(value) == '' then
+                self.rowBaseStyle = nil
+            else
+                self:setRowStyle(value, true)
+            end
+        elseif name == 'header-column-style' then
+            if value == false or value == nil or tostring(value) == '' then
+                self.headerColumnBaseStyle = nil
+            else
+                self:setHeaderColumnStyle(value)
+            end
+        elseif name == 'header-row-style' then
+            if value == false or value == nil or tostring(value) == '' then
+                self.headerRowBaseStyle = nil
+            else
+                self:setHeaderRowStyle(value)
             end
         end
     end
@@ -139,6 +147,11 @@ end
 function UITable:addHeader(data)
     if not data or type(data) ~= 'table' then
         g_logger.error('UITable:addHeaderRow - table columns must be provided in a table')
+        return
+    end
+
+    if not self.headerRowBaseStyle or self.headerRowBaseStyle == '' or not self.headerColumnBaseStyle or self.headerColumnBaseStyle == '' then
+        g_logger.error('UITable:addHeader - header styles are not set, cannot create header.')
         return
     end
 
@@ -210,7 +223,16 @@ function UITable:addRow(data, height)
         return
     end
 
-    local row = g_ui.createWidget(self.rowBaseStyle)
+    local rowStyle = self.rowBaseStyle
+    if not rowStyle or rowStyle == '' then
+        rowStyle = 'TableRow'
+    end
+
+    local row = g_ui.createWidget(rowStyle)
+    if not row then
+        g_logger.error('UITable:addRow - failed to create row widget from style ' .. tostring(rowStyle))
+        return
+    end
     row.table = self
     if height then
         row:setHeight(height)
@@ -223,7 +245,25 @@ function UITable:addRow(data, height)
 
     self.columns[rowId] = {}
     for colId, column in pairs(data) do
-        local col = g_ui.createWidget(column.style or self.columBaseStyle, row)
+        local colStyle = column.style
+        if colStyle ~= nil and tostring(colStyle) == '' then
+            colStyle = nil
+        end
+        colStyle = colStyle or self.columBaseStyle
+        if not colStyle or colStyle == '' then
+            colStyle = 'TableColumn'
+        end
+
+        local col = g_ui.createWidget(colStyle, row)
+        if not col and colStyle ~= 'TableColumn' then
+            colStyle = 'TableColumn'
+            col = g_ui.createWidget(colStyle, row)
+        end
+        if not col then
+            g_logger.error('UITable:addRow - failed to create column widget from style ' .. tostring(colStyle))
+            row:destroy()
+            return
+        end
         if column.id then
           col:setId(column.id)
         end

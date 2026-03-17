@@ -1224,6 +1224,7 @@ TrackerButton < Panel
     text-auto-resize: true
     color: #888888
     margin-left: 2
+    visible: false
 
   LifeProgressBar
     id: killsBar
@@ -1279,6 +1280,18 @@ TrackerButton < Panel
     height: 12
     phantom: true
     margin-top: 3
+
+  Label
+    id: ProgressValue
+    anchors.left: ProgressBorder2.left
+    anchors.right: ProgressBorder2.right
+    anchors.top: ProgressBorder2.top
+    anchors.bottom: ProgressBorder2.bottom
+    text-align: center
+    color: #FFFFFF
+    font: verdana-11px-monochrome
+    phantom: true
+    !text: tr('0')
 
 
 BestiaryTracker < MiniWindow

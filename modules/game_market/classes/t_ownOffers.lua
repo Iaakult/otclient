@@ -25,7 +25,10 @@ MarketOwnOffers = {
     selectedBuyCounter = {
         counter = 0,
         action = 0
-    }
+    },
+
+    lastSelectedSellWidget = nil,
+    lastSelectedBuyWidget = nil
 }
 
 MarketOwnOffers.__index = MarketOwnOffers
@@ -33,8 +36,8 @@ MarketOwnOffers.__index = MarketOwnOffers
 function MarketOwnOffers.onParseMyOffers(buyOffers, sellOffers)
     local window = marketWindow.MarketHistory.currentOffers
 
-    lastSelectedMySell = nil
-    lastSelectedMyBuy = nil
+    MarketOwnOffers.lastSelectedSellWidget = nil
+    MarketOwnOffers.lastSelectedBuyWidget = nil
     window.buyCancelOffer:setVisible(true)
     window.sellCancelOffer:setVisible(true)
     window.buyCancelOffer:setEnabled(false)
@@ -194,7 +197,7 @@ function MarketOwnOffers.onSelectMyOffersChild(self, selected, selling)
         return
     end
 
-    local lastSelected = selling and lastSelectedMySell or lastSelectedMyBuy
+    local lastSelected = selling and MarketOwnOffers.lastSelectedSellWidget or MarketOwnOffers.lastSelectedBuyWidget
     if lastSelected then
         if not lastSelected.piecePrice then
             lastSelected = nil
@@ -209,11 +212,11 @@ function MarketOwnOffers.onSelectMyOffersChild(self, selected, selling)
     end
 
     if selling then
-        lastSelectedMySell = selected
+        MarketOwnOffers.lastSelectedSellWidget = selected
         MarketOwnOffers.selectedSellCounter.counter = selected.counter
         MarketOwnOffers.selectedSellCounter.action = selected.actionId
     else
-        lastSelectedMyBuy = selected
+        MarketOwnOffers.lastSelectedBuyWidget = selected
         MarketOwnOffers.selectedBuyCounter.counter = selected.counter
         MarketOwnOffers.selectedBuyCounter.action = selected.actionId
     end

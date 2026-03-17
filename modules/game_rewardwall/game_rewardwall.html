@@ -8,29 +8,34 @@
   </div>
 
   <!-- Resting Area Bonuses Panel -->
-  <div id="restingAreaPanel" title="Resting Area Bonuses" class="content-panel minipanel" focusable="false">
+  <div id="restingAreaPanel" title="Resting Area Bonuses" class="content-panel minipanel RestingAreaMiniPanel" focusable="false">
     <div id="restingAreaInfo" layout="type: verticalBox;spacing:5" class="resting-area-info">
       <img src="/game_rewardwall/images/icon-rewardstreak-default" id="rewardStreakIcon" class="resting-area-icon"
-        onhover="self:onhoverStatusPlayer(event)" text="2" style="text-offset:30 -7" />
-      <div id="timeLeft" class="resting-area-time" onhover="self:onhoverStatusPlayer(event)" ></div>
+        onhover="self:onhoverStatusPlayer(event)" text="2" />
+      <div id="timeLeft" class="resting-area-time-container" onhover="self:onhoverStatusPlayer(event)">
+        <div id="timeLeftBar" class="resting-area-time-bar" onhover="self:onhoverStatusPlayer(event)"></div>
+        <label id="timeLeftText" class="resting-area-time-cooldown" onhover="self:onhoverStatusPlayer(event)"></label>
+      </div>
       <GoldLabel2 id="restingAreaGold" class="resting-area-gold" onhover="self:onhoverStatusPlayer(event)"></GoldLabel2>
     </div>
 
-    <div id="bonusIcons" placement="top-left" layout="type: horizontalBox;spacing:4" class="bonus-icons-container" focusable="false">
-      <div class="imgBonuses imgBonusesCss" id="bonusIcon1" onhover="self:onhoverBonus(event)"></div>
-      <div class="imgBonuses imgBonusesCss" id="bonusIcon2" onhover="self:onhoverBonus(event)"></div>
-      <div class="imgBonuses imgBonusesCss" id="bonusIcon3" onhover="self:onhoverBonus(event)"></div>
-      <div class="imgBonuses imgBonusesCss" id="bonusIcon4" onhover="self:onhoverBonus(event)"></div>
-      <div class="imgBonuses imgBonusesCss" id="bonusIcon5" onhover="self:onhoverBonus(event)"></div>
-      <div class="imgBonuses imgBonusesCss" id="bonusIcon6" onhover="self:onhoverBonus(event)"></div>
-    </div>
+    <div id="bonusAndWarning" placement="top-left" layout="type: verticalBox;spacing:2" class="bonus-warning-container" focusable="false">
+      <div id="bonusIcons" layout="type: horizontalBox;spacing:4" class="bonus-icons-container" focusable="false">
+        <div class="imgBonuses imgBonusesCss" id="bonusIcon1" onhover="self:onhoverBonus(event)"></div>
+        <div class="imgBonuses imgBonusesCss" id="bonusIcon2" onhover="self:onhoverBonus(event)"></div>
+        <div class="imgBonuses imgBonusesCss" id="bonusIcon3" onhover="self:onhoverBonus(event)"></div>
+        <div class="imgBonuses imgBonusesCss" id="bonusIcon4" onhover="self:onhoverBonus(event)"></div>
+        <div class="imgBonuses imgBonusesCss" id="bonusIcon5" onhover="self:onhoverBonus(event)"></div>
+        <div class="imgBonuses imgBonusesCss" id="bonusIcon6" onhover="self:onhoverBonus(event)"></div>
+      </div>
 
-    <label id="streakWarning" class="info-label premium-message" text="Great! You benefit from the best possible rewards and bonuses  &#10;  due to your premium status"></label>
+      <label id="streakWarning" class="info-label premium-message" text="Great! You benefit from the best possible rewards and&#10;bonuses due to your premium status"></label>
+    </div>
   </div>
 
   <!-- Daily Rewards Panel -->
-  <div id="dailyRewardsPanel" title="Daily Rewards" focusable="false" class="daily-rewards-panel minipanel"
-    layout="type: horizontalBox;spacing:-1;">
+  <div id="dailyRewardsPanel" title="Daily Rewards" focusable="false" class="daily-rewards-panel minipanel DailyRewardsMiniPanel"
+    layout="type: horizontalBox;spacing:0;">
     <div id="reward1" layout="type: verticalBox;spacing:5" class="reward-item" focusable="false">
       <RewardButton3 id="rewardButton1" class="reward-button" onhover="self:onhoverRewardType(event)"
         onclick="self:onClickDisplayWindowsPickRewardWindow(event)"></RewardButton3>

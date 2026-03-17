@@ -9,12 +9,6 @@ local sellOffers = {}
 local lastSelectedCategory = nil
 local lastSelectedItem = {}
 
-local lastSelectedMySell = nil
-local lastSelectedMyBuy = nil
-
-local lastSelectedHistorySell = nil
-local lastSelectedHistoryBuy = nil
-
 local showLockerOnly = false
 local mainMarket = nil
 
@@ -24,7 +18,91 @@ local currentActionType = 1
 local isSearching = false
 local isRebuildingCategory = false
 
-local cache = {
+local scheduledEvents = {}
+
+local cache
+
+local function clearItemListState()
+    lastSelectedItem = {}
+
+    cache.SCROLL_MARKET_ITEMS.listMin = 0
+    cache.SCROLL_MARKET_ITEMS.listMax = 0
+    cache.SCROLL_MARKET_ITEMS.listFit = 0
+    cache.SCROLL_MARKET_ITEMS.listPool = {}
+    cache.SCROLL_MARKET_ITEMS.listData = {}
+    cache.SCROLL_MARKET_ITEMS.offset = 0
+    cache.SCROLL_MARKET_ITEMS.scrollDelay = 0
+
+    if not marketWindow or marketWindow:isDestroyed() then
+        return
+    end
+
+    local itemList = marketWindow:recursiveGetChildById('itemList')
+    if itemList then
+        itemList.onChildFocusChange = nil
+    end
+
+    local itemListScroll = marketWindow:recursiveGetChildById('itemListScroll')
+    if itemListScroll then
+        itemListScroll.onValueChange = nil
+        itemListScroll:setValue(0)
+        itemListScroll:setMinimum(0)
+        itemListScroll:setMaximum(0)
+    end
+end
+
+local function clearScheduledEvents()
+    for k, eventId in pairs(scheduledEvents) do
+        if eventId then
+            removeEvent(eventId)
+        end
+        scheduledEvents[k] = nil
+    end
+end
+
+local function scheduleMarketEvent(key, fn, delay)
+    if key and scheduledEvents[key] then
+        removeEvent(scheduledEvents[key])
+        scheduledEvents[key] = nil
+    end
+
+    local eventId = scheduleEvent(fn, delay)
+    if key then
+        scheduledEvents[key] = eventId
+    else
+        table.insert(scheduledEvents, eventId)
+    end
+    return eventId
+end
+
+local function sortOffersByPrice(offers, descending)
+    if not offers or #offers < 2 then
+        return
+    end
+
+    table.sort(offers, function(a, b)
+        local pa = (a and a.price) or 0
+        local pb = (b and b.price) or 0
+        if pa ~= pb then
+            if descending then
+                return pa > pb
+            end
+            return pa < pb
+        end
+
+        local ta = (a and a.timestamp) or 0
+        local tb = (b and b.timestamp) or 0
+        if ta ~= tb then
+            return ta < tb
+        end
+
+        local ca = (a and a.counter) or 0
+        local cb = (b and b.counter) or 0
+        return ca < cb
+    end)
+end
+
+cache = {
     SCROLL_MARKET_ITEMS = {
         listMin = 0,
         listMax = 0,
@@ -102,6 +180,7 @@ function init()
 end
 
 function terminate()
+    clearScheduledEvents()
     disconnect(g_game, {
         onResourcesBalanceChange = onResourcesBalanceChange,
         onGameStart = hide,
@@ -118,9 +197,51 @@ function terminate()
     unregisterMessageMode(40, onMarketErrorMessage)
 
     if marketWindow then
+        lastSelectedCategory = nil
+        clearItemListState()
+
+        if MarketOwnOffers then
+            MarketOwnOffers.lastSelectedSellWidget = nil
+            MarketOwnOffers.lastSelectedBuyWidget = nil
+        end
+        if MarketHistory then
+            MarketHistory.lastSelectedSellWidget = nil
+            MarketHistory.lastSelectedBuyWidget = nil
+        end
+
+        if mainMarket then
+            mainMarket.sellOffersList.onChildFocusChange = nil
+            mainMarket.buyOffersList.onChildFocusChange = nil
+        end
+
+        local buyListScroll = marketWindow:recursiveGetChildById('buyOffersListScroll')
+        if buyListScroll then
+            buyListScroll.onValueChange = nil
+        end
+
+        local sellListScroll = marketWindow:recursiveGetChildById('sellOffersListScroll')
+        if sellListScroll then
+            sellListScroll.onValueChange = nil
+        end
+
+        if marketWindow.contentPanel and marketWindow.contentPanel.category then
+            marketWindow.contentPanel.category.onChildFocusChange = nil
+        end
+
+        if marketWindow.contentPanel and marketWindow.contentPanel.lockerOnly then
+            marketWindow.contentPanel.lockerOnly.onCheckChange = nil
+        end
+
+        onClearMainMarket(true)
+        onClearSearch()
+
+        clearItemListState()
+
         marketWindow:destroy()
         marketWindow = nil
     end
+
+    mainMarket = nil
 end
 
 function toggle()
@@ -129,9 +250,8 @@ function toggle()
         marketWindow:hide()
         marketWindow:unlock()
     else
-        marketWindow:show(true)
-        marketWindow:lock()
-        marketWindow.contentPanel.searchText:focus()
+        sendMarketAction(2)
+        return
     end
 end
 
@@ -139,6 +259,8 @@ function hide()
     if not marketWindow then
         return
     end
+
+    clearScheduledEvents()
     local benchmark = g_clock.millis()
     local mainMarket = marketWindow.contentPanel:getChildById('mainMarket')
     local detailsMarket = marketWindow.contentPanel:getChildById('detailsMarket')
@@ -154,7 +276,16 @@ function hide()
     marketWindow:unlock()
     onClearSearch()
 
-    lastSelectedItem = {}
+    clearItemListState()
+    lastSelectedCategory = nil
+    if MarketOwnOffers then
+        MarketOwnOffers.lastSelectedSellWidget = nil
+        MarketOwnOffers.lastSelectedBuyWidget = nil
+    end
+    if MarketHistory then
+        MarketHistory.lastSelectedSellWidget = nil
+        MarketHistory.lastSelectedBuyWidget = nil
+    end
     -- Ensure game input is focused after hiding the market (ESC key)
     if modules.game_interface and modules.game_interface.getRootPanel then
         modules.game_interface.getRootPanel():focus()
@@ -162,8 +293,9 @@ function hide()
 end
 
 function show()
-    marketWindow:lock()
     marketWindow:show(true)
+    marketWindow:raise()
+    marketWindow:focus()
     marketWindow.contentPanel.searchText:focus()
     sortButtons["classFilter"] = -1
     sortButtons["tierFilter"] = 0
@@ -184,6 +316,10 @@ function detailsButton()
     local marketButton = marketWindow.contentPanel:getChildById('marketButton')
 
     if detailsMarket:isVisible() then
+        detailsMarket:setVisible(false)
+        mainMarket:setVisible(true)
+        marketButton:setVisible(false)
+        closeButton:setVisible(true)
         return
     end
 
@@ -192,6 +328,10 @@ function detailsButton()
         detailsMarket:setVisible(true)
         closeButton:setVisible(false)
         marketButton:setVisible(true)
+
+        if not table.empty(lastSelectedItem) and lastSelectedItem.itemId then
+            sendMarketAction(3, lastSelectedItem.itemId, lastSelectedItem.tier or 0)
+        end
     else
         detailsMarket:setVisible(false)
         mainMarket:setVisible(true)
@@ -204,6 +344,8 @@ function closeMarket()
     if not marketWindow then
         return
     end
+
+    clearScheduledEvents()
 
     local marketMain = marketWindow:getChildById('contentPanel')
     local marketHistory = marketWindow:getChildById('MarketHistory')
@@ -277,18 +419,39 @@ function myOffersButton(widget)
         lastItemTier = 0
     end
 
+    if MarketOwnOffers then
+        MarketOwnOffers.lastSelectedSellWidget = nil
+        MarketOwnOffers.lastSelectedBuyWidget = nil
+    end
+    if MarketHistory then
+        MarketHistory.lastSelectedSellWidget = nil
+        MarketHistory.lastSelectedBuyWidget = nil
+    end
+
     if marketMain:isVisible() then
         if widget:getId() == 'historyButton' then
             currentOffersPanel:setVisible(false)
             offerHistoryPanel:setVisible(true)
             marketWindow:setText(tr('Offer History'))
         else
-            currentOffersPanel.sellSeparator:setVisible(false)
-            currentOffersPanel.sellStatusButton:setVisible(false)
-            currentOffersPanel.buySeparator:setVisible(false)
-            currentOffersPanel.buyStatusButton:setVisible(false)
-            currentOffersPanel.sellEndButton:setWidth(220)
-            currentOffersPanel.buyEndButton:setWidth(220)
+            if currentOffersPanel.sellSeparator then
+                currentOffersPanel.sellSeparator:setVisible(false)
+            end
+            if currentOffersPanel.sellStatusButton then
+                currentOffersPanel.sellStatusButton:setVisible(false)
+            end
+            if currentOffersPanel.buySeparator then
+                currentOffersPanel.buySeparator:setVisible(false)
+            end
+            if currentOffersPanel.buyStatusButton then
+                currentOffersPanel.buyStatusButton:setVisible(false)
+            end
+            if currentOffersPanel.sellEndButton then
+                currentOffersPanel.sellEndButton:setWidth(220)
+            end
+            if currentOffersPanel.buyEndButton then
+                currentOffersPanel.buyEndButton:setWidth(220)
+            end
             currentOffersPanel:setVisible(true)
             offerHistoryPanel:setVisible(false)
             marketWindow:setText(tr('My Offers'))
@@ -324,10 +487,14 @@ function myOffersButton(widget)
             currentOffersPanel:setVisible(true)
             marketWindow:setText(tr('My Offers'))
         elseif widget:getId() == 'marketButton' then
-            lastSelectedMySell = nil
-            lastSelectedMyBuy = nil
-            lastSelectedHistorySell = nil
-            lastSelectedHistoryBuy = nil
+            if MarketOwnOffers then
+                MarketOwnOffers.lastSelectedSellWidget = nil
+                MarketOwnOffers.lastSelectedBuyWidget = nil
+            end
+            if MarketHistory then
+                MarketHistory.lastSelectedSellWidget = nil
+                MarketHistory.lastSelectedBuyWidget = nil
+            end
             marketHistory:setVisible(false)
             marketMain:setVisible(true)
             detailsMarket:setVisible(false)
@@ -336,10 +503,14 @@ function myOffersButton(widget)
             marketWindow:setText(tr('Market'))
         end
     else
-        lastSelectedMySell = nil
-        lastSelectedMyBuy = nil
-        lastSelectedHistorySell = nil
-        lastSelectedHistoryBuy = nil
+        if MarketOwnOffers then
+            MarketOwnOffers.lastSelectedSellWidget = nil
+            MarketOwnOffers.lastSelectedBuyWidget = nil
+        end
+        if MarketHistory then
+            MarketHistory.lastSelectedSellWidget = nil
+            MarketHistory.lastSelectedBuyWidget = nil
+        end
         marketHistory:setVisible(false)
         marketMain:setVisible(true)
         detailsMarket:setVisible(false)
@@ -373,6 +544,113 @@ function getDepotItemCount(itemId, tier)
     return 0
 end
 
+local function formatDepotOverlayCount(count)
+    local function formatOneDecimalTrunc(value)
+        local truncated = math.floor(value * 10) / 10
+        local text = string.format('%.1f', truncated)
+        return text:gsub('%.0$', '')
+    end
+
+    if count >= 1000000 then
+        return formatOneDecimalTrunc(count / 1000000) .. 'kk'
+    end
+    if count >= 1000 then
+        return formatOneDecimalTrunc(count / 1000) .. 'k'
+    end
+    return tostring(count)
+end
+
+local function formatTibiaCoinOverlayCount(count)
+    local function formatOneDecimalTrunc(value)
+        local truncated = math.floor(value * 10) / 10
+        local text = string.format('%.1f', truncated)
+        return text:gsub('%.0$', '')
+    end
+
+    if count >= 1000000 then
+        return formatOneDecimalTrunc(count / 1000000) .. 'kk'
+    end
+    if count >= 1000 then
+        return formatOneDecimalTrunc(count / 1000) .. 'k'
+    end
+    return tostring(count)
+end
+
+local function setMarketItemDepotUI(widget, count, itemName)
+    if not widget or not widget.item or not widget.item.getItem or not widget.item:getItem() then
+        return
+    end
+
+    count = tonumber(count) or 0
+
+    local item = widget.item:getItem()
+    if item and item.isStackable and item:isStackable() then
+        item:setCount(math.max(1, count))
+    end
+
+    local overlay = widget.item.depotOverlay
+    if overlay then
+        if count > 1 then
+            local overlayText
+            if widget.item:getItemId() == 22118 then
+                overlayText = formatTibiaCoinOverlayCount(count)
+            else
+                overlayText = formatDepotOverlayCount(count)
+            end
+
+            overlay:setText(overlayText)
+            overlay:setVisible(true)
+        else
+            overlay:setVisible(false)
+        end
+    end
+
+    if widget.grayHover then
+        widget.grayHover:setOpacity(count > 0 and '0.0' or '0.5')
+    end
+
+    if itemName and itemName ~= '' then
+        if widget.item:getItemId() == 22118 then
+            widget.item:setTooltip(itemName)
+        elseif count > 0 then
+            widget.item:setTooltip(tr("%s%s%s%s", comma_value(count), "x", (count > 65000 and "+ " or " "), itemName))
+        else
+            widget.item:setTooltip(itemName)
+        end
+    end
+end
+
+local function refreshMarketItemListCounts()
+    if not marketWindow or marketWindow:isDestroyed() then
+        return
+    end
+
+    local itemList = marketWindow:recursiveGetChildById("itemList")
+    if not itemList or itemList:isDestroyed() then
+        return
+    end
+
+    for _, widget in ipairs(itemList:getChildren()) do
+        if widget.item and widget.item.getItem and widget.item:getItem() then
+            local itemId = widget.item:getItemId()
+            local itemTier = widget.item:getItem():getTier() or 0
+            local count = getDepotItemCount(itemId, itemTier)
+
+            local dataIndex = widget.item.itemIndex
+            local data = dataIndex and cache.SCROLL_MARKET_ITEMS.listData[dataIndex] or nil
+            local name = data and data.marketData and data.marketData.name or nil
+            if not name and widget.name then
+                name = widget.name:getTooltip()
+                if name == '' then
+                    name = widget.name:getText()
+                end
+            end
+
+            setMarketItemDepotUI(widget, count, name)
+        end
+    end
+end
+
 local marketOffersBuy = {}
 local marketOffersSell = {}
 local marketHistoryBuy = {}
@@ -381,6 +659,18 @@ local marketMyOffersBuy = {}
 local marketMyOffersSell = {}
 
 function onMarketReadOffer(action, amount, counter, itemId, playerName, price, state, timestamp, var, itemTier)
+    local isOldHistory = var == 0xFFFF
+    local isOldMyOffers = var == 0xFFFE
+    local isHistory = var == 1 or isOldHistory
+    local isMyOffers = var == 2 or isOldMyOffers
+
+    if (isHistory or isMyOffers) and (not playerName or playerName == '') then
+        local player = g_game.getLocalPlayer()
+        if player then
+            playerName = player:getName()
+        end
+    end
+
     local offer = {
         timestamp = timestamp,
         counter = counter,
@@ -395,13 +685,13 @@ function onMarketReadOffer(action, amount, counter, itemId, playerName, price, s
         itemTier = itemTier or 0
     }
 
-    if var == 1 then
+    if isHistory then
         if action == 0 then
             table.insert(marketHistoryBuy, offer)
         else
             table.insert(marketHistorySell, offer)
         end
-    elseif var == 2 then
+    elseif isMyOffers then
         if action == 0 then
             table.insert(marketMyOffersBuy, offer)
         else
@@ -421,18 +711,18 @@ function onParseStoreGetCoin(coins, transferableCoins)
         return
     end
 
+    coins = tonumber(coins) or 0
+    transferableCoins = tonumber(transferableCoins) or 0
+
+    local displayCoins = transferableCoins
+
     local coinTooltip = "Total Tibia Coins: " .. comma_value(coins + transferableCoins) ..
                             "\nIncluded transferable Tibia Coins: " .. comma_value(transferableCoins)
 
-    marketWindow.contentPanel.coinPanel.gold:setText(comma_value(transferableCoins))
+    marketWindow.contentPanel.coinPanel.gold:setText(comma_value(displayCoins))
     marketWindow.contentPanel.coinPanel.gold:setTooltip(coinTooltip)
-    marketWindow.MarketHistory.currentOffers.coinPanel.gold:setText(comma_value(transferableCoins))
+    marketWindow.MarketHistory.currentOffers.coinPanel.gold:setText(comma_value(displayCoins))
     marketWindow.MarketHistory.currentOffers.coinPanel.gold:setTooltip(coinTooltip)
-
-    local selectedItem = marketWindow.contentPanel.selectedItem:getItem()
-    if selectedItem and selectedItem:getId() == 22118 then
-        selectedItem:setCount(transferableCoins)
-    end
 
     local itemList = marketWindow:recursiveGetChildById("itemList")
     if not itemList then
@@ -442,18 +732,28 @@ function onParseStoreGetCoin(coins, transferableCoins)
     for _, widget in pairs(itemList:getChildren()) do
         local widgetItem = widget.item:getItem()
         if widgetItem and widgetItem:getId() == 22118 then
-            widgetItem:setCount(transferableCoins)
+            local itemName = ''
+            if widget.name then
+                itemName = widget.name:getTooltip()
+                if itemName == '' then
+                    itemName = widget.name:getText()
+                end
+            end
+
+            setMarketItemDepotUI(widget, displayCoins, itemName)
             break
         end
     end
 end
 
 function onResourcesBalanceChange(value, oldBalance, resourceType)
-    if resourceType > 1 then
+    if not g_game.isOnline() or not marketWindow or not marketWindow:isVisible() then
         return
     end
 
-    if not g_game.isOnline() or not marketWindow or not marketWindow:isVisible() then
+    if resourceType ~= ResourceTypes.BANK_BALANCE and resourceType ~= ResourceTypes.GOLD_EQUIPPED and
+       resourceType ~= ResourceTypes.COIN_NORMAL and resourceType ~= ResourceTypes.COIN_TRANSFERRABLE and
+       resourceType ~= ResourceTypes.COIN_AUCTION and resourceType ~= ResourceTypes.COIN_TOURNAMENT then
         return
     end
 
@@ -617,7 +917,13 @@ function onMarketEnter(items, offerCount, balance, vocation)
     configureList()
     depotLockerItems = items
 
+    local localPlayer = g_game.getLocalPlayer()
+    if localPlayer and balance and balance >= 0 then
+        localPlayer:setResourceBalance(ResourceTypes.BANK_BALANCE, balance)
+    end
+
     if marketWindow:isVisible() then
+        refreshMarketItemListCounts()
         return
     end
 
@@ -670,26 +976,28 @@ function onMarketEnter(items, offerCount, balance, vocation)
 end
 
 function onMarketBrowse(intOffers, nameOffers)
-    if #marketHistoryBuy > 0 or #marketHistorySell > 0 then
-        local buyOffersData = marketHistoryBuy
-        local sellOffersData = marketHistorySell
+    if marketWindow and marketWindow.MarketHistory and marketWindow.MarketHistory:isVisible() then
+        if marketWindow.MarketHistory.offerHistory and marketWindow.MarketHistory.offerHistory:isVisible() then
+            local buyOffersData = marketHistoryBuy
+            local sellOffersData = marketHistorySell
 
-        marketHistoryBuy = {}
-        marketHistorySell = {}
+            marketHistoryBuy = {}
+            marketHistorySell = {}
 
-        MarketHistory.onParseMarketHistory(buyOffersData, sellOffersData)
-        return
-    end
+            MarketHistory.onParseMarketHistory(buyOffersData, sellOffersData)
+            return
+        end
 
-    if #marketMyOffersBuy > 0 or #marketMyOffersSell > 0 then
-        local buyOffersData = marketMyOffersBuy
-        local sellOffersData = marketMyOffersSell
+        if marketWindow.MarketHistory.currentOffers and marketWindow.MarketHistory.currentOffers:isVisible() then
+            local buyOffersData = marketMyOffersBuy
+            local sellOffersData = marketMyOffersSell
 
-        marketMyOffersBuy = {}
-        marketMyOffersSell = {}
+            marketMyOffersBuy = {}
+            marketMyOffersSell = {}
 
-        MarketOwnOffers.onParseMyOffers(buyOffersData, sellOffersData)
-        return
+            MarketOwnOffers.onParseMyOffers(buyOffersData, sellOffersData)
+            return
+        end
     end
 
     if table.empty(lastSelectedItem) then
@@ -744,6 +1052,9 @@ function onMarketBrowse(intOffers, nameOffers)
         lastItemID = itemID
         lastItemTier = tier
     end
+
+    sortOffersByPrice(buyOffers, true)
+    sortOffersByPrice(sellOffers, false)
 
     cache.SCROLL_BUY_OFFERS.listFit = math.floor(mainMarket.buyOffersList:getHeight() / 16) - 1
     cache.SCROLL_BUY_OFFERS.listMin = 0
@@ -1059,10 +1370,8 @@ function onItemListValueChange(scroll, value, delta)
                 widget.name:setTooltip(data.marketData.name)
             end
 
-            widget.item:getItem():setCount(count)
             widget.item.itemIndex = index -- Store the actual data index, not pool index
-            widget.item:setTooltip(tr("%s%s%s%s", comma_value(count), "x", (count > 65000 and "+ " or " "),
-                data.marketData.name))
+            setMarketItemDepotUI(widget, count, data.marketData.name)
 
             local itemTier = data.tier and data.tier or tier
             widget.item:getItem():setTier(itemTier)
@@ -1075,8 +1384,6 @@ function onItemListValueChange(scroll, value, delta)
                 widget.name:setMarginTop(1)
             end
 
-            -- Update opacity based on depot availability
-            widget.grayHover:setOpacity(count > 0 and '0.0' or '0.5')
         end
     end
 
@@ -1191,15 +1498,14 @@ function onSelectChildCategory(widget, selected, keepFilter)
         end
 
         widget:setBackgroundColor('#363636')
-        widget.item:getItem():setCount(count)
         widget.item.itemIndex = i
-        widget.item:setTooltip(tr("%s%s%s%s", comma_value(count), "x", (count > 65000 and "+ " or " "),
-            itemInfo.marketData.name))
 
         if tier ~= 0 then
             widget.item:getItem():setTier(tier)
             ItemsDatabase.setTier(widget.item, tier, true)
         end
+
+        setMarketItemDepotUI(widget, count, itemInfo.marketData.name)
 
         -- Apply rarity frame
         ItemsDatabase.setRarityItem(widget.itemBackground, widget.item:getItem())
@@ -1207,8 +1513,6 @@ function onSelectChildCategory(widget, selected, keepFilter)
         if widget.name:getText():len() <= 15 then
             widget.name:setMarginTop(1)
         end
-
-        widget.grayHover:setOpacity(count > 0 and '0.0' or '0.5')
 
         table.insert(cache.SCROLL_MARKET_ITEMS.listPool, widget)
     end
@@ -1237,9 +1541,13 @@ function onSelectChildCategory(widget, selected, keepFilter)
     isRebuildingCategory = false
 
     -- Force scrollbar range after UI initialization
-    scheduleEvent(function()
+    scheduleMarketEvent('market.scrollFix', function()
+        if not marketWindow or marketWindow:isDestroyed() then
+            return
+        end
+
         local scroll = marketWindow:recursiveGetChildById("itemListScroll")
-        if scroll and #cache.SCROLL_MARKET_ITEMS.listData > 0 then
+        if scroll and not scroll:isDestroyed() and #cache.SCROLL_MARKET_ITEMS.listData > 0 then
             local correctMin = 1
             local correctMax = math.max(1, cache.SCROLL_MARKET_ITEMS.listMax - #cache.SCROLL_MARKET_ITEMS.listPool + 1)
             scroll:setMinimum(correctMin)
@@ -1251,17 +1559,15 @@ end
 function onUpdateChildItem(itemID, tier)
     for _, widget in pairs(marketWindow.contentPanel.itemList:getChildren()) do
         if widget.item:getItem():getId() == itemID and widget.item:getItem():getTier() == tier then
-            local count = itemID == 22118 and getTransferableTibiaCoins() or getDepotItemCount(itemID, tier)
+            local count = getDepotItemCount(itemID, tier)
 
+            local itemName = nil
             if lastSelectedCategory then
                 local itemInfo = marketItems[lastSelectedCategory.categoryId][widget.item.itemIndex]
-                widget.item:setTooltip(tr("%s%s%s%s", comma_value(count), "x", (count > 65000 and "+ " or " "),
-                    itemInfo.marketData.name))
+                itemName = itemInfo and itemInfo.marketData and itemInfo.marketData.name or nil
             end
 
-            widget.item:getItem():setCount(count)
-
-            widget.grayHover:setOpacity(count > 0 and '0.0' or '0.5')
+            setMarketItemDepotUI(widget, count, itemName)
             break
         end
     end
@@ -1306,11 +1612,7 @@ function onSelectChildItem(widget, selected, oldFocus)
         lastWidget = widget
     }
 
-    if itemID == 22118 then
-        marketWindow.contentPanel.selectedItem:getItem():setCount(getTransferableTibiaCoins())
-    else
-        marketWindow.contentPanel.selectedItem:getItem():setCount(getDepotItemCount(itemID, itemTier))
-    end
+    marketWindow.contentPanel.selectedItem:getItem():setCount(1)
     onClearMainMarket(false)
 
     marketOffersBuy = {}
@@ -1664,6 +1966,10 @@ function onPiecePriceEdit(widget)
         amount = math.cround(amount, mainMarket.amountCreateScrollBar:getIncrementValue())
     end
 
+    if isTibiaCoin then
+        amount = math.cround(amount, 25)
+    end
+
     local fee = math.ceil((numericValue / 50) * amount)
     if fee < 20 then
         fee = 20
@@ -1748,8 +2054,23 @@ function onPiecePriceEdit(widget)
                 mainMarket.amountCreateScrollBar:setStep(25)
                 mainMarket.amountCreateScrollBar:setIncrementStep(25)
             else
-                mainMarket.amountCreateScrollBar:setRange((isTibiaCoin and 25 or 1), math.min(maxCount, itemCount))
-                mainMarket.createButton:setEnabled(true)
+                if isTibiaCoin then
+                    local maxSell = math.floor(math.min(maxCount, itemCount) / 25) * 25
+                    if maxSell >= 25 then
+                        mainMarket.amountCreateScrollBar:setRange(25, maxSell)
+                        if mainMarket.amountCreateScrollBar:getValue() < 25 then
+                            mainMarket.amountCreateScrollBar:setValue(25)
+                        end
+                        mainMarket.createButton:setEnabled(true)
+                    else
+                        mainMarket.amountCreateScrollBar:setRange(0, 0)
+                        mainMarket.amountCreateScrollBar:setValue(0)
+                        mainMarket.createButton:setEnabled(false)
+                    end
+                else
+                    mainMarket.amountCreateScrollBar:setRange(1, math.min(maxCount, itemCount))
+                    mainMarket.createButton:setEnabled(true)
+                end
             end
         else
             mainMarket.amountCreateScrollBar:setRange(0, 0)
@@ -1805,8 +2126,15 @@ function createMarketOffer()
         return
     end
 
-    local n = mainMarket.createOfferAmount:getText()
-    local amount = tonumber(n:gsub("%D", ""))
+    local amount = mainMarket.amountCreateScrollBar:getValue()
+    if mainMarket.amountCreateScrollBar:getIncrementValue() > 1 then
+        amount = math.cround(amount, mainMarket.amountCreateScrollBar:getIncrementValue())
+    end
+
+    if lastSelectedItem.itemId == 22118 then
+        amount = math.cround(amount, 25)
+    end
+
     local piecePrice = tonumber(mainMarket.grossAmount.value)
 
     if not amount or not piecePrice then
@@ -1816,6 +2144,11 @@ function createMarketOffer()
 
     if amount <= 0 or piecePrice <= 0 then
         displayInfoBox("Error", "Amount and price must be greater than zero.")
+        return
+    end
+
+    if lastSelectedItem.itemId == 22118 and amount < 25 then
+        displayInfoBox("Error", "Minimum Tibia Coins amount is 25.")
         return
     end
 
@@ -1872,7 +2205,11 @@ function createMarketOffer()
     sendMarketCreateOffer(currentActionType, lastSelectedItem.itemId, lastSelectedItem.tier or 0, amount, piecePrice,
         mainMarket.anonymous:isChecked())
 
-    scheduleEvent(function()
+    scheduleMarketEvent('market.afterCreateRefresh', function()
+        if not g_game.isOnline() then
+            return
+        end
+
         if not table.empty(lastSelectedItem) then
             marketOffersBuy = {}
             marketOffersSell = {}
@@ -1988,15 +2325,14 @@ function onSearchItem(textField)
         end
 
         widget:setBackgroundColor('#363636')
-        widget.item:getItem():setCount(count)
         widget.item.itemIndex = i -- Store item index as property
-        widget.item:setTooltip(tr("%s%s%s%s", comma_value(count), "x", (count > 65000 and "+ " or " "),
-            itemInfo.marketData.name))
 
         if tier ~= 0 then
             widget.item:getItem():setTier(tier)
             ItemsDatabase.setTier(widget.item, tier, true)
         end
+
+        setMarketItemDepotUI(widget, count, itemInfo.marketData.name)
 
         -- Apply rarity frame
         ItemsDatabase.setRarityItem(widget.itemBackground, widget.item:getItem())
@@ -2004,9 +2340,6 @@ function onSearchItem(textField)
         if widget.name:getText():len() <= 15 then
             widget.name:setMarginTop(1)
         end
-
-        -- Update opacity based on depot availability
-        widget.grayHover:setOpacity(count > 0 and '0.0' or '0.5')
 
         table.insert(cache.SCROLL_MARKET_ITEMS.listPool, widget)
     end
@@ -2133,14 +2466,13 @@ function onShowRedirect(item)
         end
 
         widget:setBackgroundColor('#363636')
-        widget.item:getItem():setCount(count)
         widget.item.itemIndex = i
-        widget.item:setTooltip(tr("%s%s%s%s", comma_value(count), "x", (count > 65000 and "+ " or " "),
-            itemInfo.marketData.name))
 
         local itemTier = itemInfo.tier or 0
         widget.item:getItem():setTier(itemTier)
         ItemsDatabase.setTier(widget.item, itemTier, true)
+
+        setMarketItemDepotUI(widget, count, itemInfo.marketData.name)
 
         -- Apply rarity frame
         ItemsDatabase.setRarityItem(widget.itemBackground, widget.item:getItem())
@@ -2148,8 +2480,6 @@ function onShowRedirect(item)
         if widget.name:getText():len() <= 15 then
             widget.name:setMarginTop(1)
         end
-
-        widget.grayHover:setOpacity(count > 0 and '0.0' or '0.5')
 
         table.insert(cache.SCROLL_MARKET_ITEMS.listPool, widget)
     end
@@ -2280,9 +2610,13 @@ function onSortMarketFields(widget, checked)
     onSelectChildCategory(nil, lastSelectedCategory, true)
 
     if preservedItemId then
-        scheduleEvent(function()
+        scheduleMarketEvent('market.refocusItem', function()
+            if not marketWindow or marketWindow:isDestroyed() then
+                return
+            end
+
             local itemList = marketWindow:recursiveGetChildById("itemList")
-            if itemList then
+            if itemList and not itemList:isDestroyed() then
                 for _, widget in pairs(itemList:getChildren()) do
                     if widget.item:getItemId() == preservedItemId and widget.item:getItem():getTier() ==
                         (preservedItemTier or 0) then
@@ -2296,11 +2630,18 @@ function onSortMarketFields(widget, checked)
 end
 
 function onMarketDetail(itemID, details, purchase, sale, tier)
+    local detailsCount = 0
+    for _ in pairs(details or {}) do
+        detailsCount = detailsCount + 1
+    end
+    pdebug(string.format('[market] onMarketDetail itemId=%d tier=%d details=%d purchase=%d sale=%d', itemID or 0, tier or 0, detailsCount, purchase and #purchase or 0, sale and #sale or 0))
+
     marketWindow.contentPanel.detailsMarket.detailsList:destroyChildren()
     for i, str in pairs(details) do
-        if #str > 0 then
+        local text = tostring(str or '')
+        if #text > 0 then
             local widget = g_ui.createWidget('DatailsLabel', marketWindow.contentPanel.detailsMarket.detailsList)
-            widget:setText((MarketDetailNames[i] or ("Detail " .. i .. ": ")) .. str)
+            widget:setText((MarketDetailNames[i] or ("Detail " .. i .. ": ")) .. text)
         end
     end
 
@@ -2309,22 +2650,25 @@ function onMarketDetail(itemID, details, purchase, sale, tier)
     purchaseWidget.header:setText("Buy Offers:")
     if #purchase > 0 then
         local stats = purchase[1]
-        local numTransactions = stats[3]
-        local totalPrice = stats[4]
-        local highestPrice = stats[5]
-        local lowestPrice = stats[6]
+        local numTransactions = tonumber(stats[3]) or 0
+        local totalPrice = tonumber(stats[4]) or 0
+        local highestPrice = tonumber(stats[5]) or 0
+        local lowestPrice = tonumber(stats[6]) or 0
 
-        local transactionsText = purchaseWidget.transactions:getText():gsub("0", numTransactions)
+        local transactionsText = purchaseWidget.transactions:getText():gsub("%d+", tostring(numTransactions), 1)
         purchaseWidget.transactions:setText(transactionsText)
 
-        local highestText = purchaseWidget.highestPrice:getText():gsub("0", comma_value(highestPrice))
+        local highestText = purchaseWidget.highestPrice:getText():gsub("%d+", tostring(comma_value(highestPrice)), 1)
         purchaseWidget.highestPrice:setText(highestText)
 
-        local avgText = purchaseWidget.avgPrice:getText():gsub("0",
-            comma_value(math.floor(totalPrice / numTransactions)))
+        local avgPrice = 0
+        if numTransactions > 0 then
+            avgPrice = math.floor(totalPrice / numTransactions)
+        end
+        local avgText = purchaseWidget.avgPrice:getText():gsub("%d+", tostring(comma_value(avgPrice)), 1)
         purchaseWidget.avgPrice:setText(avgText)
 
-        local lowText = purchaseWidget.lowPrice:getText():gsub("0", comma_value(lowestPrice))
+        local lowText = purchaseWidget.lowPrice:getText():gsub("%d+", tostring(comma_value(lowestPrice)), 1)
         purchaseWidget.lowPrice:setText(lowText)
     end
 
@@ -2332,21 +2676,25 @@ function onMarketDetail(itemID, details, purchase, sale, tier)
     saleWidget.header:setText("Sell Offers:")
     if #sale > 0 then
         local stats = sale[1]
-        local numTransactions = stats[3]
-        local totalPrice = stats[4]
-        local highestPrice = stats[5]
-        local lowestPrice = stats[6]
+        local numTransactions = tonumber(stats[3]) or 0
+        local totalPrice = tonumber(stats[4]) or 0
+        local highestPrice = tonumber(stats[5]) or 0
+        local lowestPrice = tonumber(stats[6]) or 0
 
-        local transactionsText = saleWidget.transactions:getText():gsub("0", numTransactions)
+        local transactionsText = saleWidget.transactions:getText():gsub("%d+", tostring(numTransactions), 1)
         saleWidget.transactions:setText(transactionsText)
 
-        local highestText = saleWidget.highestPrice:getText():gsub("0", comma_value(highestPrice))
+        local highestText = saleWidget.highestPrice:getText():gsub("%d+", tostring(comma_value(highestPrice)), 1)
         saleWidget.highestPrice:setText(highestText)
 
-        local avgText = saleWidget.avgPrice:getText():gsub("0", comma_value(math.floor(totalPrice / numTransactions)))
+        local avgPrice = 0
+        if numTransactions > 0 then
+            avgPrice = math.floor(totalPrice / numTransactions)
+        end
+        local avgText = saleWidget.avgPrice:getText():gsub("%d+", tostring(comma_value(avgPrice)), 1)
         saleWidget.avgPrice:setText(avgText)
 
-        local lowText = saleWidget.lowPrice:getText():gsub("0", comma_value(lowestPrice))
+        local lowText = saleWidget.lowPrice:getText():gsub("%d+", tostring(comma_value(lowestPrice)), 1)
         saleWidget.lowPrice:setText(lowText)
     end
 end
@@ -2370,7 +2718,11 @@ end
 function onRedirect(item)
     sendMarketAction(3, item:getId(), 0)
 
-    scheduleEvent(function()
+    scheduleMarketEvent('market.redirectShow', function()
+        if not marketWindow or marketWindow:isDestroyed() then
+            return
+        end
+
         onShowRedirect(item)
     end, 100)
 end
@@ -2580,9 +2932,9 @@ function openStorePotions()
     modules.game_store.show()
 
     -- Wait a bit for the store to load categories, then select Consumables > Potions
-    scheduleEvent(function()
+    scheduleMarketEvent('market.openStorePotions', function()
         local storeUI = modules.game_store.getUI()
-        if not storeUI then
+        if not storeUI or storeUI:isDestroyed() then
             return
         end
 
@@ -2593,17 +2945,21 @@ function openStorePotions()
 
         -- Find and click Consumables category
         local consumablesWidget = listCategory:getChildById('Consumables')
-        if consumablesWidget and consumablesWidget.Button then
+        if consumablesWidget and not consumablesWidget:isDestroyed() and consumablesWidget.Button then
             consumablesWidget.Button:onClick()
 
             -- Wait a bit for subcategories to expand, then click Potions
-            scheduleEvent(function()
+            scheduleMarketEvent('market.openStorePotions.sub', function()
                 -- Find Potions subcategory by searching through children
+                if not consumablesWidget or consumablesWidget:isDestroyed() then
+                    return
+                end
+
                 if consumablesWidget.subCategories then
                     for subId, subData in ipairs(consumablesWidget.subCategories) do
                         if subData.name == "Potions" then
                             local potionsWidget = consumablesWidget:getChildById(subId)
-                            if potionsWidget and potionsWidget.Button then
+                            if potionsWidget and not potionsWidget:isDestroyed() and potionsWidget.Button then
                                 potionsWidget.Button:onClick()
                                 break
                             end

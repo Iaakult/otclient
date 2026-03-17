@@ -1,11 +1,11 @@
+TestGlobalStyle < UIWidget
+  color: #FFFFFF
+  background-color: #33AAFF
+  border-color: #33AAFF
+
 &primaryColor: #33AAFF
 &secondaryColor: $primaryColor
 &lightText: '#FFFFFF'
-
-TestGlobalStyle < UIWidget
-  color: $lightText
-  background-color: $secondaryColor
-  border-color: $primaryColor
 
 DerivedPanel < UIWidget
   &panelAccent: $secondaryColor

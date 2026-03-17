@@ -927,7 +927,12 @@ end
 
 function onContainerOpen(container, previousContainer)
     local containerWindow
+    local restoredHeight = nil
     if previousContainer then
+        if previousContainer.window then
+            -- Preserve user-resized height when the server reopens the same container id.
+            restoredHeight = previousContainer.window.preservedHeight or previousContainer.window:getHeight()
+        end
         containerWindow = previousContainer.window
         previousContainer.window = nil
         previousContainer.itemsPanel = nil
@@ -1128,6 +1133,17 @@ function onContainerOpen(container, previousContainer)
     end
 
     containerWindow:setup()
+
+    if restoredHeight then
+        local minHeight = containerWindow:getMinimumHeight() or 0
+        local maxHeight = containerWindow:getMaximumHeight() or 0
+        if maxHeight > 0 then
+            restoredHeight = math.min(restoredHeight, maxHeight)
+        end
+        restoredHeight = math.max(restoredHeight, minHeight)
+        containerWindow:setHeight(restoredHeight)
+        containerWindow.preservedHeight = nil
+    end
     
     -- Apply current sorting mode if one is active and manual sort mode is disabled
     local currentSortMode = containerSettings and containerSettings['currentSortMode']
@@ -1146,15 +1162,21 @@ function onContainerChangeSize(container, size)
         return
     end
     
-    -- Store the current height if one was preserved from page navigation
-    local preservedHeight = container.window.preservedHeight
+    -- Preserve current height across size updates (item move/add/remove) and page changes.
+    local preservedHeight = container.window.preservedHeight or container.window:getHeight()
     
     refreshContainerItems(container)
     
-    -- Restore the preserved height if it exists (from page switching)
+    -- Restore the preserved height after refresh
     if preservedHeight then
+        local minHeight = container.window:getMinimumHeight() or 0
+        local maxHeight = container.window:getMaximumHeight() or 0
+        if maxHeight > 0 then
+            preservedHeight = math.min(preservedHeight, maxHeight)
+        end
+        preservedHeight = math.max(preservedHeight, minHeight)
         container.window:setHeight(preservedHeight)
-        container.window.preservedHeight = nil -- Clear the preserved height
+        container.window.preservedHeight = nil
     end
 end
 

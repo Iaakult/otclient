@@ -49,7 +49,12 @@ function terminate()
         }
     )
 
-    ProtocolGame.unregisterExtendedOpcode(GAME_SHOP_CODE, onExtendedOpcode)
+    local ok, err = pcall(function()
+        ProtocolGame.unregisterExtendedOpcode(GAME_SHOP_CODE, onExtendedOpcode)
+    end)
+    if not ok and err then
+        g_logger.debug("[game_shop] unregisterExtendedOpcode: " .. tostring(err))
+    end
     destroy()
 end
 

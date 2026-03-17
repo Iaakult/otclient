@@ -27,6 +27,7 @@ PhantomMiniWindow
     anchors.fill: parent
     margin-top: 8
     phantom: true
+    clipping: false
 
     UIWidget
       id: store
@@ -36,6 +37,7 @@ PhantomMiniWindow
       margin-left: 8
       size: 108 20
       phantom: true
+      clipping: false
       layout:
         type: verticalBox
         cell-size: 108 20
@@ -64,7 +66,7 @@ PhantomMiniWindow
       anchors.right: store.right
       anchors.top: store.bottom
       anchors.bottom: parent.bottom
-      margin-top: 6
+      margin-top: 10
       margin-left: 0
       margin-right: 0
       margin-bottom: 0
@@ -76,6 +78,7 @@ PhantomMiniWindow
         flow: true
 
     VerticalSeparator
+      id: storeSeparator
       anchors.top: options.top
       anchors.bottom: options.bottom
       anchors.left: store.right
@@ -94,7 +97,21 @@ PhantomMiniWindow
       margin-bottom: 0
       phantom: true
       layout:
-        type: grid
-        cell-size: 20 20
+        type: verticalBox
         cell-spacing: 2
-        flow: true
+
+      UIWidget
+        id: specialsGrid
+        size: 44 20
+        phantom: true
+        layout:
+          type: grid
+          cell-size: 20 20
+          cell-spacing: 2
+          flow: true
+
+      UIWidget
+        id: specialsWide
+        size: 44 20
+        phantom: true
+        visible: false

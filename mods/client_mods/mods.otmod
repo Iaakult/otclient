@@ -5,9 +5,14 @@ Module
   website: https://github.com/mehah/otclient
   sandboxed: true
   load-later:
+    - game_localroulette
     - client_profiles
     - game_buttons
     - game_itemselector
     - client_textedit
-    - game_bot
     - game_wheel
+    - game_helper
+    - game_party_list
+    - game_battlepass
+    - game_reward
+    - game_prey_hunting

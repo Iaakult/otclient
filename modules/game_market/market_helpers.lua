@@ -1,6 +1,40 @@
+local function toNumber(v)
+    local n = tonumber(v)
+    if not n then
+        return nil
+    end
+    if n ~= n or n == math.huge or n == -math.huge then
+        return nil
+    end
+    return n
+end
+
+local function toUInt(v)
+    local n = toNumber(v)
+    if not n then
+        return nil
+    end
+    n = math.floor(n)
+    if n < 0 then
+        return nil
+    end
+    return n
+end
+
 function sendMarketAction(action, itemId, tier)
-    if action == 3 and itemId then
-        g_game.browseMarket(3, itemId, tier or 0)
+    if not g_game.isOnline() then
+        return
+    end
+
+    action = toUInt(action)
+    if action == 3 then
+        itemId = toUInt(itemId)
+        if not itemId or itemId == 0 then
+            return
+        end
+
+        tier = toUInt(tier) or 0
+        g_game.browseMarket(3, itemId, tier)
     elseif action == 2 then
         g_game.browseMarket(2, 0, 0)
     elseif action == 1 then
@@ -9,18 +43,92 @@ function sendMarketAction(action, itemId, tier)
 end
 
 function sendMarketLeave()
+    if not g_game.isOnline() then
+        return
+    end
     g_game.leaveMarket()
 end
 
 function sendMarketAcceptOffer(timestamp, counter, amount)
+    if not g_game.isOnline() then
+        return
+    end
+
+    timestamp = toUInt(timestamp)
+    counter = toUInt(counter)
+    amount = toUInt(amount)
+    if not timestamp or not counter or not amount or amount == 0 then
+        return
+    end
+
+    local maxAmount = MarketMaxAmountStackable or 64000
+    if amount > maxAmount then
+        return
+    end
+
     g_game.acceptMarketOffer(timestamp, counter, amount)
 end
 
 function sendMarketCreateOffer(offerType, itemId, tier, amount, price, anonymous)
-    g_game.createMarketOffer(offerType, itemId, tier or 0, amount, price, anonymous and 1 or 0)
+    if not g_game.isOnline() then
+        return
+    end
+
+    offerType = toUInt(offerType)
+    if offerType ~= 0 and offerType ~= 1 then
+        return
+    end
+
+    itemId = toUInt(itemId)
+    if not itemId or itemId == 0 then
+        return
+    end
+
+    tier = toUInt(tier) or 0
+    amount = toUInt(amount)
+    if not amount or amount == 0 then
+        return
+    end
+
+    local maxAmount = MarketMaxAmountStackable or 64000
+    if amount > maxAmount then
+        return
+    end
+
+    price = toUInt(price)
+    if not price or price == 0 then
+        return
+    end
+
+    local maxPrice = MarketMaxPrice or 999999999
+    if price > maxPrice then
+        return
+    end
+
+    pdebug(string.format(
+        "[market] createOffer send type=%d itemId=%d tier=%d amount=%d price=%d anonymous=%d",
+        offerType,
+        itemId,
+        tier,
+        amount,
+        price,
+        anonymous and 1 or 0
+    ))
+
+    g_game.createMarketOffer(offerType, itemId, tier, amount, price, anonymous and 1 or 0)
 end
 
 function sendMarketCancelOffer(timestamp, counter)
+    if not g_game.isOnline() then
+        return
+    end
+
+    timestamp = toUInt(timestamp)
+    counter = toUInt(counter)
+    if not timestamp or not counter then
+        return
+    end
+
     g_game.cancelMarketOffer(timestamp, counter)
 end
 
@@ -29,7 +137,15 @@ function getTransferableTibiaCoins()
     if not player then
         return 0
     end
-    return player:getResourceBalance(91) or 0
+
+    local transferable = 0
+    if ResourceTypes and ResourceTypes.COIN_TRANSFERRABLE then
+        transferable = player:getResourceBalance(ResourceTypes.COIN_TRANSFERRABLE) or 0
+    else
+        transferable = player:getResourceBalance(91) or 0
+    end
+
+    return transferable
 end
 
 function convertGold(amount, showSign)

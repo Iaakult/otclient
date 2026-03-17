@@ -50,45 +50,51 @@ OfferPanel2 < Panel
     anchors.left: parent.left
     anchors.right: parent.right
     !text: tr('Buy')
-    font: cipsoftFont
+    font: verdana-11px-antialised
     image-color: #75bfff
 
   StoreFlatPanel
     id: lblPrice
     size: 104 20
+    font: verdana-11px-antialised
     anchors.top: prev.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     margin: 3 1 0 1
     text-align: center
-    text-offset: -18 0
-    image-color: #1111118c
+    text-offset: -8 0
+    image-source: /images/ui/containerslot
+    image-border: 3
     text: 8900
     icon: /images/ui/tibiaCoin
     icon-align: center
-    icon-offset: 10 0
+    icon-offset: 12 0
   
 stackOfferPanel < Panel
   Label
     id: count
     anchors.bottom: parent.bottom
     anchors.left: parent.left
-    margin: 0 5 5 0
-    text-align: center
+    anchors.right: lblPrice.left
+    margin: 0 6 6 0
+    text-align: right
     text-auto-resize: true
+    visible: false
 
   StoreFlatPanel
     id: lblPrice
-    size: 104 20
+    size: 95 22
     anchors.bottom: parent.bottom
     anchors.right: parent.right
-    margin: 0 5 5 0
-    text-align: center
-    text-offset: 15 0
-    image-color: #1111118c
+    font: verdana-11px-antialised
+    margin: 0 5 1 0
+    text-align: right
+    text-offset: -23 0
+    image-source: /images/ui/containerslot
+    image-border: 3
     icon: /images/ui/tibiaCoin
     icon-align: right
-    icon-offset: -2 0
+    icon-offset: -5 0
   
 StoreFlatPanel < UIWidget
   phantom: true
@@ -101,6 +107,20 @@ StoreLightFlatPanel < UIWidget
   auto-focus: first
   image-source:  /game_store/images/panel_container
   image-border: 3
+
+StoreCreature < UICreature
+  image-source: ""
+  image-border: 0
+  border-width: 0
+  border-color: alpha
+  padding: 0
+
+StoreItem < UIItem
+  image-source: ""
+  image-border: 0
+  border-width: 0
+  border-color: alpha
+  padding: 0
 
 StoreButton < UIButton
   font: verdana-11px-antialised
@@ -159,8 +179,17 @@ StoreFlatLabel < UILabel
   $disabled:
     color: #dfdfdf88
 
+StoreFlatHtml < UIWidget
+  size: 86 20
+  padding: 3
+  background-color: #404040
+  image-source:  /images/ui/1pixel_down_frame
+  image-border: 5
+  clipping: true
+
 storeCategory < UIWidget
   size: 180 22
+  overflow: visible
 
   image-source: /images/ui/1pixel_down_frame
   image-border: 5
@@ -200,8 +229,8 @@ storeCategory < UIWidget
       text-align: center
       text-auto-resize: true
       !text: tr('General Stats')
-      color: #ffffff
-      font: cipsoftFont
+      color: #b8b8b8ff
+      font: verdana-11px-antialised
       $checked:
         text-offset: 12 10
       $!checked:
@@ -215,6 +244,16 @@ storeCategory < UIWidget
       phantom: true
       image-source: /images/ui/icon-arrow7x7-down
       visible: false
+
+  UIWidget
+    id: ArrowLeft
+    size: 7 7
+    anchors.right: Button.left
+    anchors.verticalCenter: Button.verticalCenter
+    margin-right: 6
+    phantom: true
+    image-source: /images/ui/icon-arrow7x7-right
+    visible: false
 
 
 

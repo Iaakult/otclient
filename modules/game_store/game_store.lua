@@ -10,10 +10,192 @@ local oldProtocol = false
 local a0xF2 = true
 
 local offerDescriptions = {}
+local requestedOfferDescriptions = {}
+local currentDescriptionOfferId = nil
 local reasonCategory = {}
 local bannersHome = {}
+local storeDescriptionRootId = 'storeDescriptionRoot'
+
+local STORE_DESCRIPTION_TTF_FONT = '/data/fonts/ttf/verdana-bold.ttf'
+local STORE_DESCRIPTION_TTF_FONT_ITALIC = '/data/fonts/ttf/verdana-bold-italic.ttf'
+local STORE_DESCRIPTION_TTF_SIZE = 11
+local STORE_DESCRIPTION_TTF_STROKE_WIDTH = 0
+local STORE_DESCRIPTION_TTF_STROKE_COLOR = tocolor('#000000')
+local STORE_DESCRIPTION_COLOR = '#dfdfdf'
+local STORE_DESCRIPTION_BULLET_ICON = '/game_store/images/icon-star-gold'
+
+local function requestOfferDescription(offerId)
+    if g_game.requestStoreOfferDescription then
+        g_game.requestStoreOfferDescription(offerId)
+        return true
+    end
+    return false
+end
+
+local function ensureStoreDescriptionRoot(container)
+    if not container or container:isDestroyed() then
+        return nil
+    end
+
+    local root = container:getChildById(storeDescriptionRootId)
+    if root and not root:isDestroyed() then
+        root:fill('parent')
+        return root
+    end
+
+    root = g_ui.createWidget('UIWidget', container)
+    root:setId(storeDescriptionRootId)
+    root:setFocusable(false)
+    root:setPhantom(true)
+    root:fill('parent')
+    root:setLayout(UIVerticalLayout.create(root))
+    return root
+end
+
+local function normalizeStoreDescription(description)
+    local text = description or ""
+    if type(text) ~= 'string' then
+        text = tostring(text)
+    end
+    return text:gsub("\r\n", "\n"):gsub("\r", "\n")
+end
+
+local function splitStoreDescriptionLines(text)
+    local out = {}
+    local startIndex = 1
+    while true do
+        local newlineIndex = text:find("\n", startIndex, true)
+        if not newlineIndex then
+            table.insert(out, text:sub(startIndex))
+            break
+        end
+
+        table.insert(out, text:sub(startIndex, newlineIndex - 1))
+        startIndex = newlineIndex + 1
+    end
+    return out
+end
+
+local function createStoreDescriptionLineLabel(parent)
+    local label = g_ui.createWidget('Label', parent)
+    label:setTextAlign(AlignLeft)
+    label:setTextWrap(true)
+    label:setTextVerticalAutoResize(true)
+    label:setTTFFont(STORE_DESCRIPTION_TTF_FONT, STORE_DESCRIPTION_TTF_SIZE, STORE_DESCRIPTION_TTF_STROKE_WIDTH, STORE_DESCRIPTION_TTF_STROKE_COLOR)
+    label:setColor(STORE_DESCRIPTION_COLOR)
+    return label
+end
+
+local function addStoreDescriptionSpacer(parent)
+    local spacer = g_ui.createWidget('UIWidget', parent)
+    spacer:setFocusable(false)
+    spacer:setPhantom(true)
+    spacer:setFixedSize(true)
+    spacer:setSize(tosize('1 6'))
+    return spacer
+end
+
+local function addStoreDescriptionLine(parent, line)
+    if line:match("^%s*$") then
+        return addStoreDescriptionSpacer(parent)
+    end
+
+    local italicText = line:match("^%s*<i>(.-)</i>%s*$") or line:match("^%s*<em>(.-)</em>%s*$")
+    if italicText then
+        local label = createStoreDescriptionLineLabel(parent)
+        label:setTTFFont(STORE_DESCRIPTION_TTF_FONT_ITALIC, STORE_DESCRIPTION_TTF_SIZE, STORE_DESCRIPTION_TTF_STROKE_WIDTH, STORE_DESCRIPTION_TTF_STROKE_COLOR)
+        label:setText(italicText)
+        return label
+    end
+
+    local replaced, count = line:gsub("^%s*<icon%-star%-gold%s*/?>%s*", "", 1)
+    if count > 0 then
+        local label = createStoreDescriptionLineLabel(parent)
+        label:setIcon(STORE_DESCRIPTION_BULLET_ICON)
+        label:setIconAlign(AlignTopLeft)
+        label:setIconOffset({ x = 0, y = 3 })
+        label:setIconSize(tosize('9 10'))
+        label:setTextOffset({ x = 14, y = 0 })
+        label:setText(replaced)
+        return label
+    end
+
+    local label = createStoreDescriptionLineLabel(parent)
+    label:setText(line)
+    return label
+end
+
+local function setStoreDescription(container, description)
+    if not container or container:isDestroyed() then
+        return
+    end
+
+    local root = ensureStoreDescriptionRoot(container)
+    if not root then
+        return
+    end
+
+    root:destroyChildren()
+
+    local text = normalizeStoreDescription(description)
+    local lines = splitStoreDescriptionLines(text)
+    for i = 1, #lines do
+        addStoreDescriptionLine(root, lines[i])
+    end
+
+    root:updateLayout()
+end
 
 local currentIndex = 1
+
+local function resetStoreSessionState()
+    a0xF2 = true
+    offerDescriptions = {}
+    requestedOfferDescriptions = {}
+    currentDescriptionOfferId = nil
+    reasonCategory = {}
+    bannersHome = {}
+    currentIndex = 1
+
+    if controllerShop and controllerShop.ui and controllerShop.ui.panelItem then
+        local container = controllerShop.ui.panelItem:getChildById('lblDescription')
+        if container and not container:isDestroyed() then
+            container:destroyChildren()
+        end
+    end
+
+    if controllerShop and controllerShop.ui then
+        if controllerShop.ui.selectedOption then
+            controllerShop.ui.selectedOption:hide()
+            controllerShop.ui.selectedOption = nil
+        end
+
+        controllerShop.ui.openedCategory = nil
+        controllerShop.ui.openedSubCategory = nil
+
+        if controllerShop.ui.listCategory then
+            controllerShop.ui.listCategory:destroyChildren()
+        end
+
+        if controllerShop.ui.panelItem then
+            if controllerShop.ui.panelItem.listProduct then
+                controllerShop.ui.panelItem.listProduct:destroyChildren()
+            end
+            local stack = controllerShop.ui.panelItem:getChildById('StackOffers')
+            if stack then
+                stack:destroyChildren()
+            end
+        end
+
+        if controllerShop.ui.HomePanel and controllerShop.ui.HomePanel.HomeRecentlyAdded and controllerShop.ui.HomePanel.HomeRecentlyAdded.HomeProductos then
+            controllerShop.ui.HomePanel.HomeRecentlyAdded.HomeProductos:destroyChildren()
+        end
+
+        if controllerShop.ui.transferHistory and controllerShop.ui.transferHistory.historyPanel then
+            controllerShop.ui.transferHistory.historyPanel:destroyChildren()
+        end
+    end
+end
 
 -- /*=============================================
 -- =            To-do                  =
@@ -24,12 +206,8 @@ local currentIndex = 1
 -- - try on outfit
 -- - improve homePanel/hystoryPanel
 
-GameStore = {}
--- == Enums ==--
-GameStore.website = {
-    WEBSITE_GETCOINS = "https://github.com/mehah/otclient",
-    --IMAGES_URL =  "http://localhost/images/store/" --./game_store --https://docs.opentibiabr.com/opentibiabr/downloads/website-applications/applications#store-for-client-13-1
-}
+GameStore = GameStore or {}
+GameStore.website = GameStore.website or {}
 
 GameStore.CoinType = {
     Coin = 0,
@@ -117,34 +295,124 @@ local function getPageLabelHistory()
     return tonumber(currentPage), tonumber(pageCount)
 end
 
+local imageQueue = {}
+local imageActive = 0
+local IMAGE_MAX_CONCURRENCY = 2
+local IMAGE_DOWNLOAD_TIMEOUT = 10
+local STORE_IMAGE_FALLBACK = "/data/images/ui/icon-questionmark"
+local STORE_IMAGE_MAX_RETRIES = 2
+local STORE_IMAGE_RETRY_DELAY_MS = 700
+
+local function sanitizeStorePath(path)
+    if type(path) ~= "string" then
+        return ""
+    end
+    path = path:gsub("\\\\", "/")
+    path = path:gsub(" ", "%%20")
+    return path
+end
+
+local function joinUrl(base, path)
+    base = tostring(base or "")
+    path = tostring(path or "")
+    if base:sub(-1) == "/" and path:sub(1, 1) == "/" then
+        return base:sub(1, -2) .. path
+    end
+    return base .. path
+end
+
+local function downloadStoreImage(url, callback)
+    local oldTimeout = HTTP.timeout
+    HTTP.timeout = IMAGE_DOWNLOAD_TIMEOUT
+    local ok, err = pcall(function()
+        HTTP.downloadImage(url, callback)
+    end)
+    HTTP.timeout = oldTimeout
+    if not ok and callback then
+        callback(nil, tostring(err))
+    end
+end
+
+local function isMissingStoreImageError(err)
+    if not err then
+        return false
+    end
+    err = tostring(err):lower()
+    return err:find("404", 1, true) ~= nil or err:find("not found", 1, true) ~= nil
+end
+
+local function setStoreImageFallback(widget, isIcon)
+    if isIcon then
+        widget:setIcon(STORE_IMAGE_FALLBACK)
+    else
+        widget:setImageSource(STORE_IMAGE_FALLBACK)
+        widget:setImageFixedRatio(false)
+    end
+end
+
 local function setImagenHttp(widget, url, isIcon)
-    if GameStore.website.IMAGES_URL then
-        HTTP.downloadImage(GameStore.website.IMAGES_URL .. url, function(path, err)
-            if err then
-                g_logger.warning("HTTP error: " .. err .. " - " .. GameStore.website.IMAGES_URL .. url)
-                if isIcon then
-                    widget:setIcon("/game_store/images/dynamic-image-error")
-                else
-                    widget:setImageSource("/game_store/images/dynamic-image-error")
-                    widget:setImageFixedRatio(false)
-                end
+    local wref = setmetatable({ w = widget }, { __mode = 'v' })
+    local function startNext()
+        if imageActive >= IMAGE_MAX_CONCURRENCY then return end
+        local task = table.remove(imageQueue, 1)
+        if not task then return end
+        imageActive = imageActive + 1
+        downloadStoreImage(task.fullUrl, function(path, err)
+            imageActive = imageActive - 1
+            local w = task.wref.w
+            if not w or w:isDestroyed() then
+                startNext()
                 return
             end
-            if isIcon then
-                widget:setIcon(path)
-            else
-                widget:setImageSource(path)
-            end
-        end)
-    else
-        if not g_resources.fileExists("/game_store/images/" .. url) then
-            widget:setImageSource("/game_store/images/dynamic-image-error")
-            widget:setImageFixedRatio(false)
-        else
-            widget:setImageSource("/game_store/images/" .. url)
-        end
 
+            if w.__storeImageKey ~= task.key then
+                startNext()
+                return
+            end
+
+            if err then
+                setStoreImageFallback(w, task.isIcon)
+
+                if not isMissingStoreImageError(err) and (task.attempt or 0) < STORE_IMAGE_MAX_RETRIES then
+                    local nextAttempt = (task.attempt or 0) + 1
+                    scheduleEvent(function()
+                        if w and not w:isDestroyed() and w.__storeImageKey == task.key then
+                            table.insert(imageQueue, {
+                                wref = setmetatable({ w = w }, { __mode = 'v' }),
+                                fullUrl = task.fullUrl,
+                                key = task.key,
+                                isIcon = task.isIcon,
+                                attempt = nextAttempt
+                            })
+                            startNext()
+                        end
+                    end, STORE_IMAGE_RETRY_DELAY_MS * nextAttempt)
+                end
+            else
+                if task.isIcon then
+                    w:setIcon(path)
+                else
+                    w:setImageSource(path)
+                end
+            end
+            startNext()
+        end)
+        startNext()
     end
+
+    local sanitizedUrl = sanitizeStorePath(url)
+    local baseUrl = GameStore.website and GameStore.website.IMAGES_URL or ""
+    if type(baseUrl) ~= "string" or baseUrl == "" then
+        setStoreImageFallback(widget, isIcon)
+        return
+    end
+
+    local fullUrl = joinUrl(baseUrl, sanitizedUrl)
+    local key = tostring(isIcon and "icon|" or "img|") .. sanitizedUrl
+    widget.__storeImageKey = key
+
+    table.insert(imageQueue, { wref = wref, fullUrl = fullUrl, key = key, isIcon = isIcon, attempt = 0 })
+    startNext()
 end
 
 local function formatNumberWithCommas(value)
@@ -169,33 +437,187 @@ local function getCoinsBalance()
         return tonumber(cleanNumber) or 0
     end
 
-    -- get coins: normal (non transferableCoins) | transfer(transferableCoins))
     local lblNormal = controllerShop.ui.lblCoins.lblTibiaCoins
     local lblTransfer = controllerShop.ui.lblCoins.lblTibiaTransfer
 
-    local normalCoins = lblNormal and extractNumber(lblNormal:getText()) or 0
-    local transferableCoins = lblTransfer and extractNumber(lblTransfer:getText()) or 0
+    local labelNormalCoins = lblNormal and extractNumber(lblNormal:getText()) or 0
+    local labelTransferableCoins = lblTransfer and extractNumber(lblTransfer:getText()) or 0
+
+    local player = g_game.getLocalPlayer()
+    local resourceNormalCoins = 0
+    local resourceTransferableCoins = 0
+    if player and player.getResourceBalance then
+        resourceNormalCoins = player:getResourceBalance(ResourceTypes.COIN_NORMAL) or 0
+        resourceTransferableCoins = player:getResourceBalance(ResourceTypes.COIN_TRANSFERRABLE) or 0
+    end
+
+    local normalCoins = labelNormalCoins > 0 and labelNormalCoins or resourceNormalCoins
+    local transferableCoins = labelTransferableCoins > 0 and labelTransferableCoins or resourceTransferableCoins
 
     return normalCoins, transferableCoins
+end
+
+local function syncCoinLabelsFromPlayer()
+    if not controllerShop.ui or not controllerShop.ui.lblCoins then
+        return
+    end
+    local player = g_game.getLocalPlayer()
+    if not player or not player.getResourceBalance then
+        return
+    end
+
+    local coinBalance = player:getResourceBalance(ResourceTypes.COIN_NORMAL) or 0
+    local transferBalance = player:getResourceBalance(ResourceTypes.COIN_TRANSFERRABLE) or 0
+
+    local lblNormal = controllerShop.ui.lblCoins.lblTibiaCoins
+    local lblTransfer = controllerShop.ui.lblCoins.lblTibiaTransfer
+
+    local function extractNumber(text)
+        if type(text) ~= "string" then
+            return 0
+        end
+        local numberStr = text:match("%d[%d,]*")
+        if not numberStr then
+            return 0
+        end
+        local cleanNumber = numberStr:gsub("[^%d]", "")
+        return tonumber(cleanNumber) or 0
+    end
+
+    local labelNormalCoins = lblNormal and extractNumber(lblNormal:getText()) or 0
+    local labelTransferableCoins = lblTransfer and extractNumber(lblTransfer:getText()) or 0
+    local hasResourceData = (coinBalance > 0) or (transferBalance > 0)
+    local labelsEmpty = (labelNormalCoins == 0 and labelTransferableCoins == 0)
+    if not hasResourceData and not labelsEmpty then
+        return
+    end
+
+    if lblNormal then
+        lblNormal:setText(formatNumberWithCommas(coinBalance))
+    end
+    if lblTransfer then
+        lblTransfer:setText(string.format("(Including: %s", formatNumberWithCommas(transferBalance)))
+    end
+end
+
+local function refreshStorePriceColors()
+    if not controllerShop.ui or controllerShop.ui:isDestroyed() then
+        return
+    end
+
+    syncCoinLabelsFromPlayer()
+
+    local normalCoins, transferableCoins = getCoinsBalance()
+    local fullBalance = normalCoins + transferableCoins
+
+    local function priceFromLabel(label)
+        if not label then
+            return 0
+        end
+        local text = label:getText()
+        if type(text) ~= "string" then
+            return 0
+        end
+        local clean = text:gsub("[^%d]", "")
+        return tonumber(clean) or 0
+    end
+
+    local function recolorStackOffer(offerWidget)
+        if not offerWidget or offerWidget:isDestroyed() then
+            return
+        end
+        local priceLabel = offerWidget:getChildById('lblPrice') or offerWidget.lblPrice
+        if not priceLabel then
+            return
+        end
+        local price = offerWidget.storePrice or priceFromLabel(priceLabel)
+        local isTransferable = offerWidget.storeIsTransferable
+        local balance = isTransferable and transferableCoins or fullBalance
+        priceLabel:setColor(balance < price and "#d33c3c" or "white")
+    end
+
+    local function refreshProductList()
+        local listProduct = controllerShop.ui.panelItem and controllerShop.ui.panelItem.listProduct or nil
+        if not listProduct then
+            return
+        end
+        for _, row in ipairs(listProduct:getChildren()) do
+            local stack = row and row:getChildById('StackOffers') or nil
+            if stack then
+                for _, offerWidget in ipairs(stack:getChildren()) do
+                    recolorStackOffer(offerWidget)
+                end
+            end
+        end
+    end
+
+    local function refreshItemPanel()
+        local panel = controllerShop.ui.panelItem
+        if not panel then
+            return
+        end
+        local stack = panel:getChildById('StackOffers')
+        if not stack then
+            return
+        end
+        for _, offerPanel in ipairs(stack:getChildren()) do
+            local priceLabel = offerPanel and offerPanel:getChildById('lblPrice') or nil
+            local btnBuy = offerPanel and offerPanel:getChildById('btnBuy') or nil
+            if priceLabel and btnBuy then
+                local price = offerPanel.storePrice or priceFromLabel(priceLabel)
+                local isTransferable = offerPanel.storeIsTransferable
+                local balance = isTransferable and transferableCoins or fullBalance
+                if offerPanel.storeDisabled then
+                    btnBuy:disable()
+                    btnBuy:setOpacity(0.8)
+                else
+                    if balance < price then
+                        btnBuy:disable()
+                    else
+                        btnBuy:enable()
+                    end
+                end
+                priceLabel:setColor(balance < price and "#d33c3c" or "white")
+            end
+        end
+    end
+
+    local function refreshHome()
+        local homeList = controllerShop.ui.HomePanel and controllerShop.ui.HomePanel.HomeRecentlyAdded and controllerShop.ui.HomePanel.HomeRecentlyAdded.HomeProductos or nil
+        if not homeList then
+            return
+        end
+        for _, row in ipairs(homeList:getChildren()) do
+            local stack = row and row:getChildById('StackOffers') or nil
+            if stack then
+                for _, offerWidget in ipairs(stack:getChildren()) do
+                    recolorStackOffer(offerWidget)
+                end
+            end
+        end
+    end
+
+    refreshProductList()
+    refreshItemPanel()
+    refreshHome()
 end
 
 local function fixServerNoSend0xF2()
     if a0xF2 then
         local player = g_game.getLocalPlayer()
         local coin, transfer = getCoinsBalance()
-        local coinBalance = g_game.getLocalPlayer():getResourceBalance(ResourceTypes.COIN_NORMAL)
+        local coinBalance = player:getResourceBalance(ResourceTypes.COIN_NORMAL)
         local transferBalance = player:getResourceBalance(ResourceTypes.COIN_TRANSFERRABLE)
-        if not coin or not transfer or coin ~= coinBalance or transfer ~= transferBalance then
-            controllerShop.ui.lblCoins.lblTibiaCoins:setText(formatNumberWithCommas(coinBalance))
-    
-            if transfer ~= transferBalance then
-                controllerShop.ui.lblCoins.lblTibiaTransfer:setText(
-                    string.format("(Including: %s", formatNumberWithCommas(transferBalance))
-                )
+        local hasResourceData = (coinBalance and coinBalance > 0) or (transferBalance and transferBalance > 0)
+        local labelsEmpty = (coin == 0 and transfer == 0)
+        if hasResourceData or labelsEmpty then
+            if coin ~= coinBalance then
+                controllerShop.ui.lblCoins.lblTibiaCoins:setText(formatNumberWithCommas(coinBalance))
             end
-            local packet2 = GameStore.SendingPackets.S_CoinBalanceUpdating
-            g_logger.warning(string.format("[game_store BUG] Check 0x%X (%d) on server  onParseStoreGetCoin", packet2, packet2))
-        end 
+            if transfer ~= transferBalance then
+                controllerShop.ui.lblCoins.lblTibiaTransfer:setText(string.format("(Including: %s", formatNumberWithCommas(transferBalance)))
+            end
+        end
     end
 end
 
@@ -215,36 +637,114 @@ local function getProductData(product)
             VALOR = "icon",
             ID = product.icon
         }
-    elseif product.outfitId or product.mountId or product.sexId then
+    elseif product.mountId then
         return {
             VALOR = "mountId",
-            ID = product.outfitId or product.mountId or product.sexId
+            ID = product.mountId
+        }
+    elseif product.outfitId or product.sexId then
+        local outfitId = product.outfitId or product.sexId
+        local head = nil
+        local body = nil
+        local legs = nil
+        local feet = nil
+        local player = g_game and g_game.getLocalPlayer and g_game.getLocalPlayer() or nil
+        if player then
+            local currentOutfit = player:getOutfit()
+            if currentOutfit then
+                head = currentOutfit.head
+                body = currentOutfit.body
+                legs = currentOutfit.legs
+                feet = currentOutfit.feet
+            end
+        end
+        head = head or product.outfitHead
+        body = body or product.outfitBody
+        legs = legs or product.outfitLegs
+        feet = feet or product.outfitFeet
+        if product.outfit then
+            head = head or product.outfit.lookHead
+            body = body or product.outfit.lookBody
+            legs = legs or product.outfit.lookLegs
+            feet = feet or product.outfit.lookFeet
+        end
+        return {
+            VALOR = "outfit",
+            ID = outfitId,
+            addons = tonumber(product.collection) or tonumber(product.addons) or 3,
+            head = math.min(132, math.max(0, tonumber(head) or 0)),
+            body = math.min(132, math.max(0, tonumber(body) or 0)),
+            legs = math.min(132, math.max(0, tonumber(legs) or 0)),
+            feet = math.min(132, math.max(0, tonumber(feet) or 0))
         }
     elseif product.maleOutfitId then
         return {
             VALOR = "outfitId",
-            ID = product.maleOutfitId
+            ID = product.maleOutfitId,
+            addons = tonumber(product.collection) or tonumber(product.addons) or 3
         }
     end
 end
 
+local function shouldShowOfferCountLabel(offer, product)
+    local count = tonumber(offer and offer.count) or tonumber(product and product.count) or 1
+    if count <= 1 then
+        return false
+    end
+
+    local itemId = tonumber((offer and (offer.itemId or offer.itemType or offer.itemtype)) or (product and (product.itemId or product.itemType or product.itemtype)) or 0) or 0
+    local name = nil
+
+    if itemId > 0 and g_things and ThingCategoryItem then
+        local thingType = g_things.getThingType(itemId, ThingCategoryItem)
+        if thingType then
+            name = thingType:getName()
+        end
+    end
+
+    if type(name) ~= "string" or name == "" then
+        name = (offer and offer.name) or (product and product.name) or ""
+    end
+
+    if type(name) ~= "string" then
+        return false
+    end
+
+    local lower = name:lower()
+    return lower:find("potion", 1, true) ~= nil or lower:find("rune", 1, true) ~= nil
+end
+
 local function createProductImage(imageParent, data)
     if data.VALOR == "item" then
-        local itemWidget = g_ui.createWidget('Item', imageParent)
+        local itemWidget = g_ui.createWidget('StoreItem', imageParent)
         itemWidget:setId(data.ID)
         itemWidget:setItemId(data.ID)
         itemWidget:setVirtual(true)
+        itemWidget:setSize('64 64')
         itemWidget:fill('parent')
     elseif data.VALOR == "icon" then
         local widget = g_ui.createWidget('UIWidget', imageParent)
         setImagenHttp(widget, "/64/" .. data.ID, false)
+        widget:setImageFixedRatio(true)
+        widget:setImageSmooth(true)
         widget:fill('parent')
-    elseif data.VALOR == "mountId" or data.VALOR:find("outfitId") then
-        local creature = g_ui.createWidget('Creature', imageParent)
+    elseif data.VALOR == "outfit" then
+        local creature = g_ui.createWidget('StoreCreature', imageParent)
         creature:setOutfit({
-            type = data.ID
+            type = data.ID,
+            addons = 3,
+            head = data.head,
+            body = data.body,
+            legs = data.legs,
+            feet = data.feet
         })
-        creature:getCreature():setStaticWalking(1000)
+        creature:fill('parent')
+    elseif data.VALOR == "mountId" or data.VALOR:find("outfitId") then
+        local creature = g_ui.createWidget('StoreCreature', imageParent)
+        creature:setOutfit({
+            type = data.ID,
+            addons = 3
+        })
         creature:fill('parent')
     end
 end
@@ -272,6 +772,8 @@ local function disableAllButtons()
         end
     end
     offerDescriptions = {}
+    requestedOfferDescriptions = {}
+    currentDescriptionOfferId = nil
 end
 
 local function enableAllButtons()
@@ -291,26 +793,98 @@ local function enableAllButtons()
     end
 end
 
+local categoryBoxBottomTrim = {
+    Consumables = 5,
+    Houses = 5,
+    Cosmetics = 1,
+    Extras = 1,
+    Tournament = 1
+}
+
 local function toggleSubCategories(parent, isOpen)
+    local selectedSubId = parent.selectedSubId or 1
+    local lastIndex = nil
+    local desiredHeight = nil
+
+    if parent.subCategoriesSize then
+        parent.closedSize = parent.closedSize or parent:getHeight()
+        if isOpen then
+            lastIndex = parent.subCategoriesSize
+            while lastIndex > 0 and not parent:getChildById(lastIndex) do
+                lastIndex = lastIndex - 1
+            end
+            local categoryId = parent.getId and parent:getId() or nil
+            local trim = categoryBoxBottomTrim[categoryId] or 1
+            parent.openedSize = math.max(0, (21 * (lastIndex + 1)) - trim)
+        end
+    end
+
+    desiredHeight = isOpen and parent.openedSize or parent.closedSize
+
+    if isOpen and parent.Button and parent.subCategoriesSize then
+        parent.Button:setChecked(false)
+    end
+
     for subId, _ in ipairs(parent.subCategories) do
         local subWidget = parent:getChildById(subId)
         if subWidget then
             subWidget:setVisible(isOpen)
-            if subId == 1 then
-                subWidget.Button:setChecked(true)
-                subWidget.Button.Arrow:setVisible(true)
-                subWidget.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-right")
+            if subWidget.Button then
+                subWidget.Button:setChecked(false)
+                subWidget.Button.Arrow:setVisible(false)
+            end
+            if subWidget.ArrowLeft then
+                subWidget.ArrowLeft:setVisible(false)
             end
         end
     end
-    parent:setHeight(isOpen and parent.openedSize or parent.closedSize)
+
+    if isOpen then
+        local selectedWidget = parent:getChildById(selectedSubId) or parent:getChildById(1)
+        if selectedWidget and selectedWidget.Button then
+            local resolvedId = selectedWidget:getId()
+            parent.selectedSubId = resolvedId
+            selectedWidget.Button:setChecked(true)
+            selectedWidget.Button.Arrow:setVisible(false)
+            if selectedWidget.ArrowLeft then
+                selectedWidget.ArrowLeft:setVisible(true)
+                selectedWidget.ArrowLeft:setImageSource("/images/ui/icon-arrow7x7-right")
+            end
+            controllerShop.ui.openedSubCategory = selectedWidget
+        end
+    end
+
     parent.opened = isOpen
-    parent.Button.Arrow:setVisible(not isOpen)
+    if parent.subCategoriesSize then
+        parent.Button.Arrow:setVisible(true)
+        parent.Button.Arrow:setImageSource(isOpen and "/images/ui/icon-arrow7x7-down" or "/images/ui/icon-arrow7x7-right")
+    else
+        parent.Button.Arrow:setVisible(false)
+    end
+
+    if desiredHeight then
+        parent:setHeight(desiredHeight)
+    end
+
+    local container = parent:getParent()
+    if container then
+        container:updateLayout()
+    end
 end
 
 local function close(parent)
     if parent.subCategories then
         toggleSubCategories(parent, false)
+    end
+
+    parent.selectedSubId = nil
+    if parent.Button then
+        parent.Button:setChecked(false)
+    end
+
+    if parent.Button and parent.subCategoriesSize then
+        parent.Button.Arrow:setVisible(true)
+        parent.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-right")
     end
 end
 
@@ -320,6 +894,9 @@ local function open(parent)
         close(oldOpen)
     end
     toggleSubCategories(parent, true)
+    if parent.Button then
+        parent.Button:setChecked(not parent.subCategoriesSize)
+    end
     controllerShop.ui.openedCategory = parent
 end
 
@@ -332,6 +909,9 @@ local function closeCategoryButtons()
                 if subWidget then
                     subWidget.Button:setChecked(false)
                     subWidget.Button.Arrow:setVisible(false)
+                    if subWidget.ArrowLeft then
+                        subWidget.ArrowLeft:setVisible(false)
+                    end
                 end
             end
         end
@@ -353,10 +933,12 @@ local function createSubWidget(parent, subId, subButton)
         closeCategoryButtons()
         parent.Button:setChecked(false)
         parent.Button.Arrow:setVisible(true)
-        parent.Button.Arrow:setImageSource("")
+        parent.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-down")
         subWidget.Button:setChecked(true)
-        subWidget.Button.Arrow:setVisible(true)
-        subWidget.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-right")
+        subWidget.Button.Arrow:setVisible(false)
+        subWidget.ArrowLeft:setVisible(true)
+        subWidget.ArrowLeft:setImageSource("/images/ui/icon-arrow7x7-right")
+        parent.selectedSubId = subId
         controllerShop.ui.openedSubCategory = subWidget
 
         if selectedOption then
@@ -411,12 +993,14 @@ function controllerShop:onInit()
         onParseStoreGetPurchaseStatus = onParseStoreGetPurchaseStatus,
         onParseStoreOfferDescriptions = onParseStoreOfferDescriptions,
         onParseStoreError = onParseStoreError,
-        onStoreInit = onStoreInit
+        onStoreInit = onStoreInit,
+        onResourcesBalanceChange = onResourcesBalanceChange
     })
 end
 
 function controllerShop:onGameStart()
     oldProtocol = g_game.getClientVersion() < 1310
+    resetStoreSessionState()
 end
 
 function controllerShop:onGameEnd()
@@ -424,11 +1008,22 @@ function controllerShop:onGameEnd()
         controllerShop.ui:hide()
     end
 
+    resetStoreSessionState()
+
     destroyWindow({transferPointsWindow, changeNameWindow, acceptWindow, processingWindow,messageBox})
+    imageQueue = {}
+    imageActive = 0
 end
 
 function controllerShop:onTerminate()
     destroyWindow({transferPointsWindow, changeNameWindow, acceptWindow, processingWindow,messageBox})
+    imageQueue = {}
+    imageActive = 0
+
+    if controllerShop.ui then
+        controllerShop.ui.openedCategory = nil
+        controllerShop.ui.openedSubCategory = nil
+    end
 end
 
 -- /*=============================================
@@ -436,9 +1031,7 @@ end
 -- =============================================*/
 
 function onStoreInit(url, coinsPacketSize)
-    if not GameStore.website.IMAGES_URL then
-        GameStore.website.IMAGES_URL = url
-    end
+    return
 end
 
 function onParseStoreGetCoin(getTibiaCoins, getTransferableCoins)
@@ -446,6 +1039,14 @@ function onParseStoreGetCoin(getTibiaCoins, getTransferableCoins)
     controllerShop.ui.lblCoins.lblTibiaCoins:setText(formatNumberWithCommas(getTibiaCoins))
     controllerShop.ui.lblCoins.lblTibiaTransfer:setText(string.format("(Including: %s",
         formatNumberWithCommas(getTransferableCoins)))
+    refreshStorePriceColors()
+end
+
+function onResourcesBalanceChange(_, _, resourceType)
+    if resourceType ~= ResourceTypes.COIN_NORMAL and resourceType ~= ResourceTypes.COIN_TRANSFERRABLE then
+        return
+    end
+    refreshStorePriceColors()
 end
 
 function onParseStoreOfferDescriptions(offerId, description)
@@ -453,6 +1054,10 @@ function onParseStoreOfferDescriptions(offerId, description)
         id = offerId,
         description = description
     }
+
+    if currentDescriptionOfferId == offerId and controllerShop.ui and controllerShop.ui.panelItem then
+        setStoreDescription(controllerShop.ui.panelItem:getChildById('lblDescription'), description)
+    end
 end
 
 function onParseStoreGetPurchaseStatus(purchaseStatus)
@@ -483,7 +1088,13 @@ function onParseStoreGetPurchaseStatus(purchaseStatus)
                 animationEvent = nil
             end
             fixServerNoSend0xF2()
-            g_game.sendRequestStorePremiumBoost() -- fix: request and refresh store to prevent XP Boost purchase bug
+            local ui = controllerShop.ui
+            local target = ui and (ui.openedSubCategory or ui.openedCategory) or nil
+            local categoryName = target and (target.open or target:getId()) or nil
+            if categoryName == "Boosts" then
+                g_game.requestStoreOffers(categoryName, "", 0, 1)
+            end
+            refreshStorePriceColors()
         end, 2000)
     end
 end
@@ -510,31 +1121,42 @@ function onParseStoreCreateProducts(storeProducts)
     for _, product in ipairs(storeProducts.offers) do
         local row = g_ui.createWidget('RowStore', listProduct)
         row.product, row.type = product, product.type
+        row:setOpacity(1)
 
         local nameLabel = row:getChildById('lblName')
         nameLabel:setText(product.name)
-        nameLabel:setTextAlign(AlignCenter)
+        nameLabel:setTextAlign(AlignLeft)
         nameLabel:setMarginRight(10)
 
         local subOffers = product.subOffers or { product }
         for _, subOffer in ipairs(subOffers) do
             local offerI = g_ui.createWidget('stackOfferPanel', row:getChildById('StackOffers'))
-            offerI:setId(subOffer.id)
-            if subOffer.disabled then
-                offerI:disable()
-                row:setOpacity(0.5)
-            end
+            local id = subOffer.id or product.id or 0
+            local disabled = subOffer.disabled or product.disabled or false
+            local price = subOffer.price or product.price or 0
+            local isTransferable = (subOffer.coinType or product.coinType) == GameStore.CoinType.Transferable
+            offerI:setId(id)
+            offerI.storePrice = price
+            offerI.storeIsTransferable = isTransferable
+            offerI.storeDisabled = disabled
+            offerI:enable()
+            offerI:setOpacity(1)
             local priceLabel = offerI:getChildById('lblPrice')
-            priceLabel:setText(subOffer.price)
+            priceLabel:setText(price)
 
-            if subOffer.count and subOffer.count > 0 then
-                offerI:getChildById('count'):setText(subOffer.count .. "x")
+            local countLabel = offerI:getChildById('count')
+            if countLabel then
+                if shouldShowOfferCountLabel(subOffer, product) then
+                    countLabel:setVisible(true)
+                    countLabel:setText(tostring(tonumber(subOffer.count) or 1) .. "x")
+                else
+                    countLabel:setVisible(false)
+                    countLabel:setText("")
+                end
             end
             fixServerNoSend0xF2()
-            local coinsBalance2, coinsBalance1 = getCoinsBalance()
-            local isTransferable = subOffer.coinType == GameStore.CoinType.Transferable
-            local price = subOffer.price
-            local balance = isTransferable and coinsBalance1 or (coinsBalance1 + coinsBalance2)
+            local normalCoins, transferableCoins = getCoinsBalance()
+            local balance = isTransferable and transferableCoins or (normalCoins + transferableCoins)
             priceLabel:setColor(balance < price and "#d33c3c" or "white")
 
             if isTransferable then
@@ -571,22 +1193,38 @@ function onParseStoreCreateProducts(storeProducts)
     enableAllButtons()
     showPanel("panelItem")
     fixServerNoSend0xF2()
+    refreshStorePriceColors()
 end
 
 function onParseStoreCreateHome(offer)
     local homeProductos = controllerShop.ui.HomePanel.HomeRecentlyAdded.HomeProductos
+    homeProductos:destroyChildren()
     for _, product in ipairs(offer.offers) do
-        local row = g_ui.createWidget('RowStore', homeProductos)
+        local row = g_ui.createWidget('RowStoreHome', homeProductos)
         row.product, row.type = product, product.type
 
         local nameLabel = row:getChildById('lblName')
         nameLabel:setText(product.name)
-        nameLabel:setTextAlign(AlignCenter)
+        nameLabel:setTextAlign(AlignLeft)
         nameLabel:setMarginRight(10)
         
         local subOfferWidget = g_ui.createWidget('stackOfferPanel', row:getChildById('StackOffers'))
+        subOfferWidget.storePrice = product.price or 0
+        subOfferWidget.storeIsTransferable = product.coinType == GameStore.CoinType.Transferable
+        subOfferWidget.storeDisabled = product.disabled or false
 
         subOfferWidget.lblPrice:setText(product.price)
+
+        local countLabel = subOfferWidget:getChildById('count')
+        if countLabel then
+            if shouldShowOfferCountLabel(product, product) then
+                countLabel:setVisible(true)
+                countLabel:setText(tostring(tonumber(product.count) or 1) .. "x")
+            else
+                countLabel:setVisible(false)
+                countLabel:setText("")
+            end
+        end
         if product.coinType == GameStore.CoinType.Transferable then
             subOfferWidget.lblPrice:setIcon("/game_store/images/icon-tibiacointransferable")
         end
@@ -603,6 +1241,7 @@ function onParseStoreCreateHome(offer)
     bannersHome = table.copy(offer.banners)
     showPanel("HomePanel")
     fixServerNoSend0xF2()
+    refreshStorePriceColors()
 end
 
 function onParseStoreGetHistory(currentPage, pageCount, historyData)
@@ -632,24 +1271,11 @@ function onParseStoreGetHistory(currentPage, pageCount, historyData)
 end
 
 function onParseStoreGetCategories(buttons)
-    if controllerShop.ui.listCategory:getChildCount() > 0 then
-        return
-    end
     controllerShop.ui.listCategory:destroyChildren()
+    controllerShop.ui.openedCategory = nil
+    controllerShop.ui.openedSubCategory = nil
 
     local categories = {}
-    if not oldProtocol then
-        categories = {
-            ["Home"] = {
-                ["subCategories"] = {},
-                ["name"] = "Home",
-                ["icons"] = {
-                    [1] = "icon-store-home.png"
-                },
-                ["state"] = 0
-            }
-        }
-    end
 
     local subcategories = {}
 
@@ -668,27 +1294,47 @@ function onParseStoreGetCategories(buttons)
         end
     end
 
-    local orderedCategoryNames = {"Home", "Premium Time", "Consumables", "Cosmetics", "Houses", "Boosts", "Extras",
-                                "Tournament"}
-
-    local priority = {}
-    for index, name in ipairs(orderedCategoryNames) do
-        priority[name] = index
+    if not categories["Home"] then
+        categories["Home"] = {
+            ["subCategories"] = {},
+            ["name"] = "Home",
+            ["icons"] = {
+                [1] = "icon-store-home.png"
+            },
+            ["state"] = 0
+        }
     end
 
+    -- Ordem desejada ( igual client CIP ): Home, VIP Shop, LendariumShop, Vocation Items, Consumables, Cosmetics, Houses, Boosts, Extras, Tournament
+    local orderedCategoryNames = {"Home", "VIP Shop", "LendariumShop", "Vocation Items", "Consumables", "Cosmetics",
+                                "Houses", "Boosts", "Extras", "Tournament", "Premium Time"}
+
+    -- Construir categoryArray na ordem exata (iterar sobre ordem desejada, nao sobre pairs)
     local categoryArray = {}
+    local used = {}
+    for _, wantedName in ipairs(orderedCategoryNames) do
+        for catName, data in pairs(categories) do
+            local nameMatch = (catName == wantedName) or (catName and wantedName and catName:lower() == wantedName:lower())
+            if nameMatch and not used[catName] then
+                table.insert(categoryArray, data)
+                used[catName] = true
+                break
+            end
+        end
+    end
+    -- Categorias enviadas pelo servidor mas nao na lista: adicionar no final (ordem alfabetica para consistencia)
+    local rest = {}
     for name, data in pairs(categories) do
+        if not used[name] then
+            table.insert(rest, data)
+        end
+    end
+    table.sort(rest, function(a, b) return (a.name or "") < (b.name or "") end)
+    for _, data in ipairs(rest) do
         table.insert(categoryArray, data)
     end
 
-    -- Ordenar el array
-    table.sort(categoryArray, function(a, b)
-        local prioA = priority[a.name] or math.huge
-        local prioB = priority[b.name] or math.huge
-        return prioA < prioB
-    end)
-
-    for _, category in ipairs(categoryArray) do
+    for index, category in ipairs(categoryArray) do
         local widget = g_ui.createWidget("storeCategory", controllerShop.ui.listCategory)
         widget:setId(category.name)
             -- widget.Button.Icon:setIcon("/game_store/images/13/" .. category.icons[1])
@@ -705,6 +1351,7 @@ function onParseStoreGetCategories(buttons)
                 widget.subCategories = category.subCategories
                 widget.subCategoriesSize = #category.subCategories
                 widget.Button.Arrow:setVisible(true)
+                widget.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-right")
 
                 for subId, subButton in ipairs(category.subCategories) do
                     local subWidget = createSubWidget(widget, subId, {
@@ -713,6 +1360,8 @@ function onParseStoreGetCategories(buttons)
                         open = subButton.name
                     })
                 end
+            else
+                widget.Button.Arrow:setVisible(false)
             end
 
             widget:setMarginTop(10)
@@ -747,23 +1396,24 @@ function onParseStoreGetCategories(buttons)
                 if oldOpen and oldOpen ~= parent then
                     if oldOpen.Button then
                         oldOpen.Button:setChecked(false)
-                        oldOpen.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-down")
+                    end
+                    if controllerShop.ui.openedSubCategory and controllerShop.ui.openedSubCategory:getParent() == oldOpen then
+                        controllerShop.ui.openedSubCategory = nil
                     end
                     close(oldOpen)
                 end
 
                 if parent.subCategoriesSize then
-                    parent.closedSize = parent.closedSize or parent:getHeight() / (parent.subCategoriesSize + 1) + 15
-                    parent.openedSize = parent.openedSize or parent:getHeight() * (parent.subCategoriesSize + 1) - 6
-
                     open(parent)
 
                 else
                     widget.Button:setChecked(true)
                 end
 
-                widget.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-right")
-                widget.Button.Arrow:setVisible(true)
+                if parent.subCategoriesSize then
+                    widget.Button.Arrow:setVisible(true)
+                    widget.Button.Arrow:setImageSource("/images/ui/icon-arrow7x7-down")
+                end
 
                 if controllerShop.ui.selectedOption then
                     controllerShop.ui.selectedOption:hide()
@@ -772,7 +1422,18 @@ function onParseStoreGetCategories(buttons)
                     controllerShop.ui.HomePanel.HomeRecentlyAdded.HomeProductos:destroyChildren()
                     g_game.sendRequestStoreHome()
                 else
-                    g_game.requestStoreOffers(category.name,"", 0, 1)
+                    if parent.subCategoriesSize and parent.subCategories then
+                        local selectedSubId = parent.selectedSubId or 1
+                        local selectedSub = parent.subCategories[selectedSubId]
+                        local selectedName = selectedSub and selectedSub.name or nil
+                        if selectedName then
+                            g_game.requestStoreOffers(selectedName, "", 0, 1)
+                        else
+                            g_game.requestStoreOffers(category.name, "", 0, 1)
+                        end
+                    else
+                        g_game.requestStoreOffers(category.name, "", 0, 1)
+                    end
                 end
                 controllerShop.ui.openedCategory = parent
             end
@@ -798,6 +1459,11 @@ function hide()
     if not controllerShop.ui then
         return
     end
+    if controllerShop.ui.openedCategory then
+        close(controllerShop.ui.openedCategory)
+    end
+    controllerShop.ui.openedCategory = nil
+    controllerShop.ui.openedSubCategory = nil
     controllerShop.ui:hide()
 end
 
@@ -822,6 +1488,20 @@ function show()
     controllerShop.ui:focus()
 
     g_game.openStore()
+
+    controllerShop:scheduleEvent(function()
+        if not controllerShop.ui or not controllerShop.ui.listCategory then
+            return
+        end
+
+        local homeWidget = controllerShop.ui.listCategory:getChildById("Home")
+        if homeWidget and homeWidget.Button then
+            homeWidget.Button:onClick()
+        else
+            g_game.sendRequestStoreHome()
+        end
+    end, 50, function() return 'forceStoreHomeOnOpen' end)
+
     controllerShop:scheduleEvent(function()
         if controllerShop.ui.listCategory:getChildCount() == 0 then
             g_game.sendRequestStoreHome() -- fix 13.10
@@ -884,11 +1564,29 @@ function chooseOffert(self, focusedChild)
     local description = product.description or ""
     local subOffers = product.subOffers or {}
     if not table.empty(subOffers) then
-        local descriptionInfo = offerDescriptions[subOffers[1].id] or { id = 0xFFFF, description = "" }
-        description = descriptionInfo.description
+        local offerId = subOffers[1].id
+        currentDescriptionOfferId = offerId
+        if not offerDescriptions[offerId] and not requestedOfferDescriptions[offerId] then
+            requestedOfferDescriptions[offerId] = true
+            requestOfferDescription(offerId)
+        end
+        local descriptionInfo = offerDescriptions[offerId]
+        if descriptionInfo and descriptionInfo.description and descriptionInfo.description ~= "" then
+            description = descriptionInfo.description
+        end
+    elseif (not description or description == "") and product.id then
+        currentDescriptionOfferId = product.id
+        if not offerDescriptions[product.id] and not requestedOfferDescriptions[product.id] then
+            requestedOfferDescriptions[product.id] = true
+            requestOfferDescription(product.id)
+        end
+        local descriptionInfo = offerDescriptions[product.id]
+        if descriptionInfo then
+            description = descriptionInfo.description
+        end
     end
 
-    panel:getChildById('lblDescription'):setText(description)
+    setStoreDescription(panel:getChildById('lblDescription'), description)
 
     local data = getProductData(product)
     local imagePanel = panel:getChildById('image')
@@ -908,10 +1606,11 @@ function chooseOffert(self, focusedChild)
         local offerPanel = g_ui.createWidget('OfferPanel2', offerStackPanel)
 
         local priceLabel = offerPanel:getChildById('lblPrice')
-        priceLabel:setText(offer.price)
+        local offerPrice = offer.price or product.price or 0
+        priceLabel:setText(offerPrice)
 
         local itemCount = (offer.count and offer.count > 0) and offer.count or 1
-        if itemCount > 1 then
+        if itemCount > 1 and shouldShowOfferCountLabel(offer, product) then
             offerPanel:getChildById('btnBuy'):setText("Buy " .. itemCount .. "x")
         end
 
@@ -919,8 +1618,12 @@ function chooseOffert(self, focusedChild)
             offerPanel:getChildById('btnBuy'):setText("Configurable")
         end
 
-        local isTransferable = offer.coinType == GameStore.CoinType.Transferable
+        local isTransferable = (offer.coinType or product.coinType) == GameStore.CoinType.Transferable
         local currentBalance = isTransferable and transferableCoins or (normalCoins + transferableCoins)
+
+        offerPanel.storePrice = offerPrice
+        offerPanel.storeIsTransferable = isTransferable
+        offerPanel.storeDisabled = offer.disabled or false
 
         if isTransferable then
             priceLabel:setIcon("/game_store/images/icon-tibiacointransferable")
@@ -928,7 +1631,7 @@ function chooseOffert(self, focusedChild)
             priceLabel:setIcon("images/ui/tibiaCoin")
         end
 
-        if currentBalance < offer.price then
+        if currentBalance < offerPrice then
             priceLabel:setColor("#d33c3c")
             offerPanel:getChildById('btnBuy'):disable()
         else
@@ -941,10 +1644,7 @@ function chooseOffert(self, focusedChild)
             btnBuy:disable()
             btnBuy:setOpacity(0.8)
             local lblDescription = panel:getChildById('lblDescription')
-            lblDescription:parseColoredText(string.format(
-                "[color=#ff0000]The product is currently not available for this character. See the buy button tooltip for details.[/color]\n\n-%s",
-                description
-            ))
+            setStoreDescription(lblDescription, description)
             if offer.reasonIdDisable then
                 local tooltipOverlay = g_ui.createWidget('UIWidget', offerPanel)
                 tooltipOverlay:setId('tooltipOverlay')
@@ -981,8 +1681,8 @@ function chooseOffert(self, focusedChild)
                 local latestNormal, latestTransferable = getCoinsBalance()
                 local latestCurrentBalance = isTransferable and latestTransferable or (latestNormal + latestTransferable)
 
-                if latestCurrentBalance >= offer.price then
-                    g_game.buyStoreOffer(offer.id, GameStore.ClientOfferTypes.CLIENT_STORE_OFFER_OTHER)
+                if latestCurrentBalance >= (offer.price or product.price or 0) then
+                    g_game.buyStoreOffer((offer.id or product.id), GameStore.ClientOfferTypes.CLIENT_STORE_OFFER_OTHER)
                     local closeWindow = function() destroyWindow(processingWindow) end
                     controllerShop.ui:hide()
                     processingWindow = displayGeneralBox(
@@ -1009,7 +1709,7 @@ function chooseOffert(self, focusedChild)
             local confirmationMessage = string.format(
                 'Do you want to buy the product "%s" for %d %s?', 
                 product.name, 
-                offer.price, 
+                (offer.price or product.price or 0), 
                 coinType
             )
 
@@ -1018,7 +1718,7 @@ function chooseOffert(self, focusedChild)
                 "%dx %s\nPrice: %d %s",
                 itemCountConfirm,
                 product.name,
-                offer.price,
+                (offer.price or product.price or 0),
                 coinType
             )
 
@@ -1186,4 +1886,3 @@ function search()
     end
     g_game.sendRequestStoreSearch(controllerShop.ui.SearchEdit:getText(), 0, 1)
 end
-

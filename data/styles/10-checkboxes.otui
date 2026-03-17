@@ -2,12 +2,15 @@ CheckBox < UICheckBox
   size: 12 12
   text-align: left
   text-offset: 18 -1
+  color: #ffffff
+  image-color: #ffffff
   image-rect: 0 0 12 12
   image-source: /images/ui/checkbox
   change-cursor-image: true
   cursor: pointer
 
   $hover !disabled:
+    color: #ffffff
 
   $!checked:
     image-clip: 0 0 12 12
@@ -17,6 +20,9 @@ CheckBox < UICheckBox
 
   $disabled:
     change-cursor-image: false
+    opacity: 0.8
+    color: #dfdfdf88
+    image-color: #dfdfdf88
 
 CheckBoxCircle < UICheckBox
   size: 12 12

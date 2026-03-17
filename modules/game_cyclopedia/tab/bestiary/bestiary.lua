@@ -956,15 +956,24 @@ function Cyclopedia.onParseCyclopediaTracker(trackerType, data)
         
         local raceData = g_things.getRaceData(raceId)
         local name = raceData.name
+        local formattedName = name:gsub("(%l)(%w*)", function(first, rest)
+            return first:upper() .. rest
+        end)
 
         local widget = g_ui.createWidget("TrackerButton", window.contentsPanel)
         widget:setId(raceId)
         widget.creature:setOutfit(raceData.outfit)
-        widget.label:setText(name:len() > 12 and name:sub(1, 9) .. "..." or name)
-        widget.kills:setText(kills .. "/" .. maxKills)
+        widget.label:setText(formattedName:len() > 12 and formattedName:sub(1, 9) .. "..." or formattedName)
         widget.onMouseRelease = onTrackerClick
 
         Cyclopedia.SetBestiaryProgress(54,widget.killsBar2, widget.ProgressBack33, widget.ProgressBack55, kills, uno, dos, maxKills)
+
+        local progressValue = widget.ProgressValue or widget:recursiveGetChildById('ProgressValue')
+        if progressValue then
+            progressValue:setText(tostring(kills))
+            progressValue:setVisible(true)
+            progressValue:raise()
+        end
     end
 end
 
@@ -1028,9 +1037,23 @@ function Cyclopedia.saveTrackerData(trackerType, data)
     if not char or #char == 0 then
         return
     end
+
+    if type(data) ~= "table" then
+        return
+    end
     
     local dataKey = trackerType == "bosstiary" and "bosstiaryTrackerData" or "bestiaryTrackerData"
     local charDataKey = string.format("%s_%s", dataKey, char)
+
+    -- Never overwrite a valid cache with empty data on relog/logout.
+    -- Server updates can arrive late and temporarily leave in-memory tables empty.
+    if #data == 0 then
+        local existing = g_settings.getNode(charDataKey)
+        if existing and existing['data'] and #existing['data'] > 0 then
+            return
+        end
+        return
+    end
     
     g_settings.mergeNode(charDataKey, {
         ['data'] = data,
@@ -1050,12 +1073,9 @@ function Cyclopedia.loadTrackerData(trackerType)
     
     local settings = g_settings.getNode(charDataKey)
     if settings and settings['data'] and settings['character'] == char then
-        -- Check if data is not too old (older than 1 hour = stale)
-        local timestamp = settings['timestamp'] or 0
-        local currentTime = os.time()
-        if currentTime - timestamp < 3600 then -- 1 hour in seconds
-            return settings['data']
-        end
+        -- Keep cached tracker data even if old. Fresh server data, when available,
+        -- will replace it; this avoids empty trackers after relog.
+        return settings['data']
     end
     return nil
 end

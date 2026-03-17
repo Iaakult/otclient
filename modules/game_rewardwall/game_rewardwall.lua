@@ -1,9 +1,4 @@
 rewardWallController = Controller:new()
--- /*=============================================
--- =            To-do                  =
--- =============================================*/
--- - otui -> html/css (g_ui.displayUI)
--- - Improve Ids footerGold2 , footerGold1, "test", "displayGeneralBox3"
 
 local ServerPackets = {
     ShowDialog = 0xED,
@@ -70,7 +65,6 @@ local DailyRewardStatus = { -- sendDailyRewardCollectionState 0xDE ?
 local CONST_WINDOWS_BOX = {
     ALREADY = 1,
     RELEASE = 2,
-    CONFIRMATION_IRA = 3, -- IRA = Instant Reward Access
     NO_IRA = 4
 }
 
@@ -78,22 +72,6 @@ local BOX_CONFIGS = {
     [CONST_WINDOWS_BOX.ALREADY] = {
         title = "Warning",
         content = "Sorry, you have already taken your daily reward or you are unable to collect it"
-    },
-    [CONST_WINDOWS_BOX.CONFIRMATION_IRA] = {
-        title = "Confirmation of using Instant Reward Access",
-        content = "Remember! You can always collect your daily reward for free by visiting a reward shrine!\n\nYou Currently own 3x Instant Reward Access. Do you really want to use one to claim your daily reward now?",
-        okCallback = function()
-            g_game.requestGetRewardDaily(bonusShrine, actualUsed)
-            if windowsPickWindow then
-                windowsPickWindow:destroy()
-                windowsPickWindow = nil
-            end
-            if generalBox then
-                generalBox:destroy()
-                generalBox = nil
-            end
-            show()
-        end
     },
     [CONST_WINDOWS_BOX.NO_IRA] = {
         title = "Warning: No Sufficient Instant Reward Access",
@@ -127,9 +105,13 @@ local function premiumStatusWindwos(isPremium)
     rewardWallController.ui.infoPanel.free:setColor(isPremium and "#909090" or "#FFFFFF")
     rewardWallController.ui.infoPanel.premium:setColor(isPremium and "#FFFFFF" or "#909090")
     if isPremium then
-        for i, widget in pairs(rewardWallController.ui.restingAreaPanel.bonusIcons:getChildren()) do
-            if widget then
-                widget:setOn(true)
+        local restingAreaPanel = rewardWallController.ui.restingAreaPanel
+        local bonusIcons = restingAreaPanel and restingAreaPanel:recursiveGetChildById('bonusIcons') or nil
+        if bonusIcons then
+            for _, widget in pairs(bonusIcons:getChildren()) do
+                if widget then
+                    widget:setOn(true)
+                end
             end
         end
     end
@@ -137,6 +119,135 @@ end
 
 local function convert_timestamp(timestamp)
     return os.date("%Y-%m-%d, %H:%M:%S", timestamp)
+end
+
+local function formatDurationShort(totalSeconds)
+    totalSeconds = math.max(0, math.floor(tonumber(totalSeconds) or 0))
+    local hours = math.floor(totalSeconds / 3600)
+    local minutes = math.floor((totalSeconds % 3600) / 60)
+    return string.format("%02d:%02d", hours, minutes)
+end
+
+local cooldownDeadlineTs = 0
+local cooldownTotalSeconds = 0
+local cooldownUpdateEvent = nil
+local DEFAULT_COOLDOWN_TOTAL_SECONDS = 24 * 60 * 60
+
+local function stopCooldownTicker()
+    if cooldownUpdateEvent then
+        removeEvent(cooldownUpdateEvent)
+        cooldownUpdateEvent = nil
+    end
+end
+
+local function ensureCooldownLabelStyle(widget)
+    if not widget then
+        return
+    end
+
+    widget:setVisible(true)
+    widget:setTextAlign(AlignCenter)
+    widget:setColor("#dfdfdf")
+end
+
+local function setCooldownLabelText(widget, text)
+    if not widget then
+        return
+    end
+
+    widget:setText(text)
+    ensureCooldownLabelStyle(widget)
+    widget:setTextOffset('1 0')
+    widget:setTextOffset('0 0')
+end
+
+local function getCooldownWidgets()
+    if not rewardWallController.ui or rewardWallController.ui:isDestroyed() then
+        return nil, nil
+    end
+
+    local timeLeftContainer = rewardWallController.ui.restingAreaPanel.restingAreaInfo.timeLeft
+    if not timeLeftContainer then
+        return nil, nil
+    end
+
+    local bar = timeLeftContainer.timeLeftBar or timeLeftContainer
+    local label = timeLeftContainer.timeLeftText
+    return bar, label
+end
+
+local function setCooldownBarPercent(widget, percent)
+    if not widget or not widget.getWidth or not widget.getHeight or not widget.setImageRect then
+        return false
+    end
+
+    if widget.getImageTextureWidth and widget.setImageSource and widget:getImageTextureWidth() == 0 then
+        widget:setImageSource('/game_rewardwall/images/progressbar-orange-large')
+    end
+
+    local w = widget:getWidth()
+    local h = widget:getHeight()
+    if w <= 0 or h <= 0 then
+        return false
+    end
+
+    percent = math.max(0, math.min(100, tonumber(percent) or 0))
+    local filled = math.floor(((percent / 100) * w) + 0.5)
+    filled = math.max(1, math.min(w, filled))
+    widget:setImageRect({x = 0, y = 0, width = filled, height = h})
+    return true
+end
+
+local function updateCooldownLabel()
+    local barWidget, labelWidget = getCooldownWidgets()
+    if not barWidget then
+        stopCooldownTicker()
+        return
+    end
+
+    if cooldownDeadlineTs <= 0 then
+        if labelWidget then
+            setCooldownLabelText(labelWidget, "Expired")
+            if barWidget.setText then
+                barWidget:setText('')
+            end
+        else
+            setCooldownLabelText(barWidget, "Expired")
+        end
+        setCooldownBarPercent(barWidget, 100)
+        stopCooldownTicker()
+        return
+    end
+
+    local remaining = cooldownDeadlineTs - os.time()
+    if remaining <= 0 then
+        if labelWidget then
+            setCooldownLabelText(labelWidget, "Expired")
+            if barWidget.setText then
+                barWidget:setText('')
+            end
+        else
+            setCooldownLabelText(barWidget, "Expired")
+        end
+        setCooldownBarPercent(barWidget, 100)
+        stopCooldownTicker()
+        return
+    end
+
+    if cooldownTotalSeconds > 0 then
+        local total = math.max(1, math.floor(cooldownTotalSeconds))
+        local remainingClamped = math.max(0, math.min(total, math.floor(remaining)))
+        setCooldownBarPercent(barWidget, (remainingClamped / total) * 100)
+    end
+
+    if labelWidget then
+        setCooldownLabelText(labelWidget, formatDurationShort(remaining))
+        if barWidget.setText then
+            barWidget:setText('')
+        end
+    else
+        setCooldownLabelText(barWidget, formatDurationShort(remaining))
+    end
 end
 
 local function getBonusStrings(bonuses)
@@ -168,6 +279,10 @@ local function updateDailyRewards(dayStreakDay, wasDailyRewardTaken)
         if rewardWidget then
             local test = g_ui.createWidget("RewardButton", rewardWidget:getChildById("rewardGold" .. i))
             test:setOn(true)
+            local checkmark = test:getChildById('checkmark')
+            if checkmark then
+                checkmark:setVisible(true)
+            end
             test:fill("parent")
             test:setPhantom(true)
             rewardArrow:setImageClip("5 0 5 7")
@@ -179,19 +294,48 @@ local function updateDailyRewards(dayStreakDay, wasDailyRewardTaken)
 
     local currentReward = dailyRewardsPanel:getChildById("reward" .. dayStreakDay + 1)
     if currentReward then
-        local test = g_ui.createWidget("GoldLabel2", currentReward:getChildById("rewardGold" .. dayStreakDay + 1))
+        local isShrineAccess = bonusShrine == OPEN_WINDOWS.SHRINE
+        local testStyle = isShrineAccess and "GoldLabel2DailyShrineCost" or "GoldLabel2DailyOptions"
+        local test = g_ui.createWidget(testStyle, currentReward:getChildById("rewardGold" .. dayStreakDay + 1))
         test:setOn(true)
-        test:fill("parent")
         test:setPhantom(true)
-        test.text:setText(wasDailyRewardTaken)
-        if wasDailyRewardTaken < g_game.getLocalPlayer():getResourceBalance(ResourceTypes.DAILYREWARD_STREAK) then
-            test.text:setColor("white")
-        else
-            test.text:setColor("red")
+        local iraBalance = 0
+        if not isShrineAccess then
+            local player = g_game.getLocalPlayer()
+            if player and player.getResourceBalance and ResourceTypes and ResourceTypes.DAILYREWARD_STREAK then
+                iraBalance = tonumber(player:getResourceBalance(ResourceTypes.DAILYREWARD_STREAK)) or 0
+            end
         end
-        test.gold:setImageSource("/game_rewardwall/images/icon-daily-reward-joker")
-        test.gold:setImageSize("12 12")
-        test.gold:setImageOffset("-20 0")
+        local textWidget = test:recursiveGetChildById('text')
+        if textWidget then
+            if isShrineAccess then
+                textWidget:setText(0)
+                textWidget:setColor("#FFFFFF")
+            else
+                textWidget:setText(iraBalance >= 1 and iraBalance or 1)
+                textWidget:setColor(iraBalance >= 1 and "#FFFFFF" or "#D33C3C")
+            end
+            if textWidget.setFont then
+                textWidget:setFont('Verdana Bold-11px')
+            end
+        end
+
+        local strikeText = test:recursiveGetChildById('strikeText')
+        if strikeText then
+            strikeText:setText('1')
+            strikeText:setColor('#909090')
+            if strikeText.setOpacity then
+                strikeText:setOpacity(0.7)
+            end
+            strikeText:setVisible(isShrineAccess)
+        end
+
+        local goldWidget = test:recursiveGetChildById('gold')
+        if goldWidget then
+            goldWidget:setImageSource("/game_rewardwall/images/instant-reward-access-icon")
+            goldWidget:setImageSize("12 12")
+            goldWidget:setImageOffset(isShrineAccess and "-25 0" or "0 0")
+        end
         currentReward:getChildById("rewardGold" .. dayStreakDay + 1).status = 2
         currentReward:setOn(false)
         currentReward:getChildById("rewardButton" .. dayStreakDay + 1).ditherpattern:setVisible(false)
@@ -203,6 +347,10 @@ local function updateDailyRewards(dayStreakDay, wasDailyRewardTaken)
         if rewardWidget then
             local test = g_ui.createWidget("RewardButton", rewardWidget:getChildById("rewardGold" .. i))
             test:setOn(false)
+            local checkmark = test:getChildById('checkmark')
+            if checkmark then
+                checkmark:setVisible(false)
+            end
             test:fill("parent")
             test:setPhantom(true)
             rewardWidget:getChildById("rewardButton" .. i):setOn(true)
@@ -228,15 +376,6 @@ local function getDayStreakIcon(dayStreakLevel)
     else
         return IconConsecutiveDays[100]
     end
-end
-
-local function getBonusDescription(bonusName, streakCount, activeBonuses)
-    local isPremium = g_game.getLocalPlayer():isPremium()
-
-    return string.format(
-        "Allow [color=#909090]%s[/color]%s\nThis bonus is active because you are [color=%s]Premium[/color] and reached a reward streak of at least [color=#44AD25]%d[/color].%s",
-        bonusName, isPremium and "" or "[color=#ff0000](Locked)[/color]", isPremium and "#44AD25" or "#ff0000",
-        streakCount, isPremium and ("\n\nActive bonuses: [color=#909090]%s[/color]."):format(activeBonuses) or "")
 end
 
 local function checkRewards(data)
@@ -271,27 +410,9 @@ local function checkRewards(data)
         end
     end
 end
--- /*=============================================
--- =            onParse                  =
--- =============================================*/
---[[
---  0xDE ??
-local function onDailyRewardCollectionState(state)
-    if not rewardWallController.ui:isVisible() then
-        return
-    end
-
-    local text = {
-        [DailyRewardStatus.DAILY_REWARD_COLLECTED] = "you did not claim your daily reward in time. too bad, you do not have enough Daily Reward Jokers.",
-        [DailyRewardStatus.DAILY_REWARD_NOTCOLLECTED] = "You did not claim your daily reward in time. If you don't claim your reward now, your [color=#D33C3C]streak will be reset.[/color]",
-        [DailyRewardStatus.DAILY_REWARD_NOTAVAILABLE] ="idk",
-    }
-    rewardWallController.ui.restingAreaPanel.streakWarning:parseColoredText(text[state],"#c0c0c0")
-end 
-]]
 
 local function onRestingAreaState(zone, state, message)
-    if ZONE.LAST_ZONE == zone then -- todo move cpp
+    if ZONE.LAST_ZONE == zone then
         return
     end
     ZONE.LAST_ZONE = zone
@@ -342,7 +463,7 @@ local function disconnectOnServerError()
 end
 
 local function onOpenRewardWall(bonusShrines, nextRewardTime, dayStreakDay, wasDailyRewardTaken, errorMessage, tokens,
-    timeLeft, dayStreakLevel)
+    timeLeft, dayStreakLevel, lastServerSave, nextServerSave)
     if bonusShrines == OPEN_WINDOWS.SHRINE then
         rewardWallController.ui:show()
         rewardWallController.ui:raise()
@@ -351,9 +472,49 @@ local function onOpenRewardWall(bonusShrines, nextRewardTime, dayStreakDay, wasD
     bonusShrine = bonusShrines
     updateDailyRewards(dayStreakDay, wasDailyRewardTaken)
     rewardWallController.ui.restingAreaPanel.restingAreaInfo.rewardStreakIcon:setText(dayStreakLevel)
-    rewardWallController.ui.restingAreaPanel.restingAreaInfo.timeLeft:setText(
-        (timeLeft == 0 and "Expired") or (timeLeft == 90001 and "< 1 min") or timeLeft)
-    rewardWallController.ui.restingAreaPanel.restingAreaInfo.restingAreaGold.text:setText(tokens)
+    do
+        local streakValue = tostring(tonumber(dayStreakLevel) or 0)
+        local digits = #streakValue
+        local offsetX = 29 - (math.max(0, digits - 1) * 4)
+        if offsetX < 0 then
+            offsetX = 0
+        end
+        local icon = rewardWallController.ui.restingAreaPanel.restingAreaInfo.rewardStreakIcon
+        if icon and icon.setTextOffset then
+            icon:setTextOffset(offsetX .. " 2")
+        end
+    end
+
+    local lastSSTs = tonumber(lastServerSave) or 0
+    local nextSSTs = tonumber(nextServerSave) or 0
+    local deadlineTs
+    if nextSSTs > 0 then
+        deadlineTs = nextSSTs
+    elseif wasDailyRewardTaken ~= 0 then
+        deadlineTs = tonumber(nextRewardTime) or 0
+    else
+        deadlineTs = tonumber(timeLeft) or 0
+    end
+
+    cooldownTotalSeconds = deadlineTs > 0 and DEFAULT_COOLDOWN_TOTAL_SECONDS or 0
+
+    local timeLeftContainer = rewardWallController.ui.restingAreaPanel.restingAreaInfo.timeLeft
+    local timeLeftWidget = timeLeftContainer and (timeLeftContainer.timeLeftText or timeLeftContainer.timeLeftBar) or timeLeftContainer
+    cooldownDeadlineTs = deadlineTs
+    ensureCooldownLabelStyle(timeLeftWidget)
+    updateCooldownLabel()
+    if cooldownUpdateEvent then
+        removeEvent(cooldownUpdateEvent)
+        cooldownUpdateEvent = nil
+    end
+    if cooldownDeadlineTs > 0 then
+        cooldownUpdateEvent = cycleEvent(updateCooldownLabel, 1000)
+    end
+
+    local restingAreaGold = rewardWallController.ui.restingAreaPanel.restingAreaInfo.restingAreaGold
+    restingAreaGold.gold:setVisible(true)
+    restingAreaGold.text:setText(tokens)
+
     rewardWallController.ui.footerPanel.footerGold1.text:setText(tokens)
     rewardWallController.ui.restingAreaPanel.restingAreaInfo.rewardStreakIcon:setImageSource(
         "/game_rewardwall/images/" .. getDayStreakIcon(dayStreakLevel))
@@ -388,11 +549,17 @@ end
 -- /*=============================================
 -- =            Windows                  =
 -- =============================================*/
-function show()
+function show(requestServer)
     if not rewardWallController.ui then
         return
     end
-    g_game.sendOpenRewardWall()
+    if requestServer == nil then
+        requestServer = true
+    end
+    if requestServer then
+        bonusShrine = OPEN_WINDOWS.BUTTON_WIDGET
+        g_game.sendOpenRewardWall()
+    end
     rewardWallController.ui:show()
     rewardWallController.ui:raise()
     rewardWallController.ui:focus()
@@ -405,6 +572,7 @@ function hide(bool)
         return
     end
     rewardWallController.ui:hide()
+    stopCooldownTicker()
     if bool then
         disconnectOnServerError()
     end
@@ -418,7 +586,7 @@ function toggle()
         ButtonRewardWall:setOn(false)
         return hide(true)
     end
-    show()
+    show(true)
     ButtonRewardWall:setOn(true)
 end
 
@@ -429,18 +597,27 @@ local function fixCssIncompatibility() -- temp
     local restingAreaGold = rewardWallController.ui.restingAreaPanel.restingAreaInfo.restingAreaGold
     restingAreaGold.gold:setImageSource("/game_rewardwall/images/icon-daily-reward-joker")
     restingAreaGold.gold:setImageSize("12 12")
-    restingAreaGold.gold:setImageOffset("-30 0")
+    restingAreaGold.gold:setImageOffset("-25 0")
+    if restingAreaGold.text and restingAreaGold.text.setFont then
+        restingAreaGold.text:setFont('Verdana Bold-11px')
+    end
 
     local footerGold1 = rewardWallController.ui.footerPanel.footerGold1
     footerGold1.gold:setImageSource("/game_rewardwall/images/icon-daily-reward-joker")
     footerGold1.gold:setImageSize("11 11")
     footerGold1.gold:setImageOffset("-3 0")
     footerGold1.text:setTextAlign(AlignRightCenter)
+    if footerGold1.text and footerGold1.text.setFont then
+        footerGold1.text:setFont('Verdana Bold-11px')
+    end
 
     local footerGold2 = rewardWallController.ui.footerPanel.footerGold2
     footerGold2.gold:setImageSource("/game_rewardwall/images/instant-reward-access-icon")
     footerGold2.gold:setImageSize("12 12")
     footerGold2.gold:setImageOffset("-5 0")
+    if footerGold2.text and footerGold2.text.setFont then
+        footerGold2.text:setFont('Verdana Bold-11px')
+    end
 end
 -- /*=============================================
 -- =            Controller                  =
@@ -455,13 +632,13 @@ function rewardWallController:onInit()
         onDailyReward = onDailyReward,
         onRewardHistory = onRewardHistory,
         onRestingAreaState = onRestingAreaState
-        -- onDailyRewardCollectionState
     })
     fixCssIncompatibility()
 end
 
 function rewardWallController:onTerminate()
     generalBox, windowsPickWindow, ButtonRewardWall = destroyWindows({generalBox, windowsPickWindow, ButtonRewardWall})
+    stopCooldownTicker()
 end
 
 function rewardWallController:onGameStart()
@@ -482,6 +659,7 @@ function rewardWallController:onGameEnd()
         rewardWallController.ui:hide()
         ButtonRewardWall:setOn(false)
     end
+    stopCooldownTicker()
     generalBox, windowsPickWindow = destroyWindows({generalBox, windowsPickWindow})
 end
 -- /*=============================================
@@ -552,7 +730,8 @@ function rewardWallController:onClickDisplayWindowsPickRewardWindow(event)
     elseif event.target.bundleType == bundleType.XPBOOST or event.target.bundleType == bundleType.PREY then
         hide()
         actualUsed = {}
-        managerMessageBoxWindow(CONST_WINDOWS_BOX.CONFIRMATION_IRA)
+        g_game.requestGetRewardDaily(bonusShrine == OPEN_WINDOWS.SHRINE and 0 or 1, actualUsed)
+        show(bonusShrine ~= OPEN_WINDOWS.SHRINE)
     end
 end
 
@@ -675,7 +854,16 @@ function onClickBtnOk()
     if table.empty(actualUsed) then
         return
     end
-    managerMessageBoxWindow(CONST_WINDOWS_BOX.CONFIRMATION_IRA)
+    g_game.requestGetRewardDaily(bonusShrine == OPEN_WINDOWS.SHRINE and 0 or 1, actualUsed)
+    if windowsPickWindow then
+        windowsPickWindow:destroy()
+        windowsPickWindow = nil
+    end
+    if generalBox then
+        generalBox:destroy()
+        generalBox = nil
+    end
+    show(bonusShrine ~= OPEN_WINDOWS.SHRINE)
 end
 
 function destroyPickReward(bool)

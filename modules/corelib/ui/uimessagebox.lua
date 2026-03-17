@@ -42,7 +42,7 @@ function UIMessageBox.display(title, message, buttons, onEnterCallback, onEscape
 
     currentSizes.height = currentSizes.height + 22
     for i = 1, #buttons do
-        local button = messageBox:addButton(buttons[i].text, buttons[i].callback)
+        local button = messageBox:addButton(buttons[i])
         button:addAnchor(AnchorTop, 'parent', AnchorTop)
         if i == 1 then
             button:addAnchor(AnchorRight, 'parent', AnchorRight)
@@ -118,14 +118,23 @@ function displayGeneralSHOPBox(title, message, description, buttons, onEnterCall
     return UIMessageBox.displaySHOP(title, message, description, buttons, onEnterCallback, onEscapeCallback)
 end
 
-function UIMessageBox:addButton(text, callback)
+function UIMessageBox:addButton(configOrText, callback)
     local holder = self:getChildById('holder')
     local button = g_ui.createWidget('QtButton', holder)
+    local config = type(configOrText) == 'table' and configOrText or {text = configOrText, callback = callback}
+    local text = config.text or ''
     button:setWidth(math.max(48, 10 + (string.len(text) * 8)))
     button:setHeight(20)
     button:setText(text)
+    if config.imageColor ~= nil and button.setImageColor then
+        button:setImageColor(config.imageColor)
+    end
+    local textColor = config.textColor ~= nil and config.textColor or config.color
+    if textColor ~= nil and button.setColor then
+        button:setColor(textColor)
+    end
     connect(button, {
-        onClick = callback
+        onClick = config.callback
     })
     return button
 end

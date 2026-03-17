@@ -338,8 +338,9 @@ function Cyclopedia.CreateCharmItem(data)
     end
 
     local player = g_game.getLocalPlayer()
-    if widget.icon == 1 and player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED) then
-        local canAfford = data.removeRuneCost <= player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+    if widget.icon == 1 and player then
+        local totalGold = player:getResourceBalance(ResourceTypes.BANK_BALANCE) + player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+        local canAfford = data.removeRuneCost <= totalGold
         value:setColor(canAfford and "#C0C0C0" or "#D33C3C")
     elseif widget.icon == 0 then
         local canAfford = data.unlockPrice <= UI.CharmsPoints
@@ -373,13 +374,29 @@ function Cyclopedia.loadCharms(charmsData)
 
         controllerCyclopedia.ui.CharmsBase.Value:setText(formatResourceBalance(ResourceTypes.CHARM,
             ResourceTypes.MAX_CHARM))
-        controllerCyclopedia.ui.CharmsBase1410.Value:setText(
-            formatResourceBalance(ResourceTypes.MINOR_CHARM, ResourceTypes.MAX_MINOR_CHARM))
     else
         controllerCyclopedia.ui.CharmsBase.Value:setText(Cyclopedia.formatGold(charmsData.points))
     end
 
     UI.CharmsPoints = charmsData.points
+    UI.ResetAllCharmsCost = charmsData.resetAllCharmsCost or 0
+    
+    -- Update Reset All Charms cost display
+    if isModernUI and UI.anotherPanel and UI.anotherPanel.ResetAllCharmsCost then
+        local resetCostWidget = UI.anotherPanel.ResetAllCharmsCost
+        resetCostWidget.Value:setText(comma_value(UI.ResetAllCharmsCost))
+        
+        -- Update color based on affordability
+        local totalGold = player:getResourceBalance(ResourceTypes.BANK_BALANCE) + player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+        local canAfford = UI.ResetAllCharmsCost <= totalGold
+        resetCostWidget.Value:setColor(canAfford and "#C0C0C0" or "#D33C3C")
+        
+        -- Enable/disable the button
+        if UI.anotherPanel.ResetAllCharmsButton then
+            UI.anotherPanel.ResetAllCharmsButton:setEnabled(canAfford and UI.ResetAllCharmsCost > 0)
+        end
+    end
+
 
     Cyclopedia.Charms.Monsters = {}
     local raceIdNamePairs = {}
@@ -529,10 +546,16 @@ local function updateUIColors(widget, UI_BASE)
         end
         if not widget.data.asignedStatus then
             priceValue:setText(0)
+        else
+            priceValue:setText(comma_value(widget.data.removeRuneCost))
+            local totalGold = player:getResourceBalance(ResourceTypes.BANK_BALANCE) + player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+            local canAfford = widget.data.removeRuneCost <= totalGold
+            priceValue:setColor(canAfford and "#C0C0C0" or "#D33C3C")
         end
     else
-        if widget.icon == 1 and player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED) then
-            local canAfford = widget.data.removeRuneCost <= player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+        if widget.icon == 1 and player then
+            local totalGold = player:getResourceBalance(ResourceTypes.BANK_BALANCE) + player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+            local canAfford = widget.data.removeRuneCost <= totalGold
             priceValue:setColor(canAfford and "#C0C0C0" or "#D33C3C")
             UI_BASE.UnlockButton:setEnabled(canAfford)
 
@@ -681,6 +704,21 @@ function Cyclopedia.selectCharm(widget, isChecked)
     end
 
     setupModernVersionUpgrade(widget, UI_BASE)
+    
+    -- Enable/disable Clear Charm button
+    if isModernUI then
+        local clearCharmButton = UI.InformationBase.verticalPanelUnLockClearChram.ClearCharmButton
+        if clearCharmButton then
+            if widget.data.asignedStatus then
+                local player = g_game.getLocalPlayer()
+                local totalGold = player:getResourceBalance(ResourceTypes.BANK_BALANCE) + player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+                local canAfford = widget.data.removeRuneCost <= totalGold
+                clearCharmButton:setEnabled(canAfford)
+            else
+                clearCharmButton:setEnabled(false)
+            end
+        end
+    end
 end
 
 function Cyclopedia.selectCreatureCharm(widget, isChecked)
@@ -778,7 +816,7 @@ function Cyclopedia.actionCharmButton(widget)
     if type == "Unlock" then
         local function yesCallback()
             if isModernUI then
-                g_game.BuyCharmRune(0, data.id, 0)
+                g_game.BuyCharmRune(data.id, 0, 0)
             else
                 g_game.BuyCharmRune(data.id)
             end
@@ -789,6 +827,13 @@ function Cyclopedia.actionCharmButton(widget)
             end
 
             Cyclopedia.Charms.redirect = data.id
+            
+            -- Reload Cyclopedia after 100ms to get updated values from server
+            scheduleEvent(function()
+                if Cyclopedia.isOpen() then
+                    Cyclopedia.openPage(5) -- Reopen Charms page (page 5)
+                end
+            end, 100)
         end
 
         local function noCallback()
@@ -817,7 +862,7 @@ function Cyclopedia.actionCharmButton(widget)
     if type == "Select" or type == "Select Creature" then
         local function yesCallback()
             if isModernUI then
-                g_game.BuyCharmRune(1, data.id, Cyclopedia.Charms.SelectedCreature)
+                g_game.BuyCharmRune(data.id, 1, Cyclopedia.Charms.SelectedCreature)
             else
                 g_game.BuyCharmRune(data.id, 1, Cyclopedia.Charms.SelectedCreature)
             end
@@ -853,13 +898,20 @@ function Cyclopedia.actionCharmButton(widget)
 
     if type == "Remove" then
         local function yesCallback()
-            g_game.BuyCharmRune(data.id, 2)
+            g_game.BuyCharmRune(data.id, 2, 0)
             if confirmWindow then
                 confirmWindow:destroy()
                 confirmWindow = nil
             end
 
             Cyclopedia.Charms.redirect = data.id
+            
+            -- Reload Cyclopedia after 100ms
+            scheduleEvent(function()
+                if Cyclopedia.isOpen() then
+                    Cyclopedia.openPage(5)
+                end
+            end, 100)
         end
 
         local function noCallback()
@@ -887,12 +939,19 @@ function Cyclopedia.actionCharmButton(widget)
     end
     if isModernUI and type:match("^Upgrade") then
         local function yesCallback()
-            g_game.BuyCharmRune(0, data.id, 0)
+            g_game.BuyCharmRune(data.id, 0, 0)
             if confirmWindow then
                 confirmWindow:destroy()
                 confirmWindow = nil
             end
             Cyclopedia.Charms.redirect = data.id
+            
+            -- Reload Cyclopedia after 100ms
+            scheduleEvent(function()
+                if Cyclopedia.isOpen() then
+                    Cyclopedia.openPage(5)
+                end
+            end, 100)
         end
 
         local function noCallback()
@@ -949,7 +1008,7 @@ function Cyclopedia.actionSelectCharmButton(widget)
     if type == "Select" or type == "Select Creature" then
         local function yesCallback()
             if isModernUI then
-                g_game.BuyCharmRune(1, data.id, Cyclopedia.Charms.SelectedCreature)
+                g_game.BuyCharmRune(data.id, 1, Cyclopedia.Charms.SelectedCreature)
             else
                 g_game.BuyCharmRune(data.id, 1, Cyclopedia.Charms.SelectedCreature)
             end
@@ -981,5 +1040,119 @@ function Cyclopedia.actionSelectCharmButton(widget)
                     anchor = AnchorHorizontalCenter
                 }, yesCallback, noCallback)
         end
+    end
+end
+
+function Cyclopedia.actionClearCharmButton(widget)
+    local confirmWindow
+    local data = UI.InformationBase.data
+    
+    if not data or not data.asignedStatus then
+        return
+    end
+    
+    local function yesCallback()
+        g_game.BuyCharmRune(data.id, 2, 0)
+        if confirmWindow then
+            confirmWindow:destroy()
+            confirmWindow = nil
+        end
+        Cyclopedia.Charms.redirect = data.id
+        
+        -- Reload Cyclopedia after 100ms
+        scheduleEvent(function()
+            if Cyclopedia.isOpen() then
+                Cyclopedia.openPage(5)
+            end
+        end, 100)
+    end
+
+    local function noCallback()
+        if confirmWindow then
+            confirmWindow:destroy()
+            confirmWindow = nil
+        end
+    end
+
+    if not confirmWindow then
+        confirmWindow = displayGeneralBox(tr("Confirm Charm Removal"),
+            tr("Do you want to remove the Charm %s from this creature? This will cost you %s gold pieces.",
+                data.name, comma_value(data.removeRuneCost)), {
+                {
+                    text = tr("Yes"),
+                    callback = yesCallback
+                },
+                {
+                    text = tr("No"),
+                    callback = noCallback
+                },
+                anchor = AnchorHorizontalCenter
+            }, yesCallback, noCallback)
+    end
+end
+
+function Cyclopedia.actionResetAllCharmsButton(widget)
+    local confirmWindow
+    local resetCost = UI.ResetAllCharmsCost or 0
+    
+    local player = g_game.getLocalPlayer()
+    if not player then
+        return
+    end
+    
+    if resetCost <= 0 then
+        displayInfoBox(tr("Reset All Charms"), 
+            tr("You don't have any charms assigned. The reset cost is 0 because there are no charms to reset."))
+        return
+    end
+    
+    local totalGold = player:getResourceBalance(ResourceTypes.BANK_BALANCE) + player:getResourceBalance(ResourceTypes.GOLD_EQUIPPED)
+    if resetCost > totalGold then
+        displayInfoBox(tr("Insufficient Gold"), 
+            tr("You need %s gold pieces to reset all charms, but you only have %s gold pieces.",
+                comma_value(resetCost), comma_value(totalGold)))
+        return
+    end
+    
+    local function yesCallback()
+        -- For action 3 (reset all):
+        -- runeId is ignored (will not be sent in protocol)
+        -- action = 3
+        -- raceId is ignored (will not be sent for action 3)
+        g_game.BuyCharmRune(0, 3, 0)
+        if confirmWindow then
+            confirmWindow:destroy()
+            confirmWindow = nil
+        end
+        
+        -- Reload Cyclopedia after 100ms to get updated values
+        scheduleEvent(function()
+            if Cyclopedia.isOpen() then
+                Cyclopedia.openPage(5)
+            end
+        end, 100)
+    end
+
+    local function noCallback()
+        if confirmWindow then
+            confirmWindow:destroy()
+            confirmWindow = nil
+        end
+    end
+
+    if not confirmWindow then
+        confirmWindow = displayGeneralBox(tr("Confirm Reset All Charms"),
+            tr("Do you want to reset all charms? This will cost you %s gold pieces and you will receive all spent charm points back.",
+                comma_value(resetCost)), {
+                {
+                    text = tr("Yes"),
+                    callback = yesCallback
+                },
+                {
+                    text = tr("No"),
+                    callback = noCallback
+                },
+                anchor = AnchorHorizontalCenter
+            }, yesCallback, noCallback)
     end
 end

@@ -16,8 +16,69 @@ local configList = nil
 local enableButton = nil
 local executeEvent = nil
 local statusLabel = nil
+local botButtonOwnedByGameBot = false
 
 local configManagerUrl = "http://otclient.ovh/configs.php"
+
+local function ensureMainButtonVisible(button, buttonId, buttonTooltip)
+  if not button or button:isDestroyed() then
+    return
+  end
+
+  button:setVisible(true)
+
+  -- Keep compatibility with Main Panel "Control Buttons" visibility config.
+  local controlButtons = g_settings.getNode('control_buttons') or {}
+  controlButtons.buttons = controlButtons.buttons or {}
+  controlButtons.order = controlButtons.order or {}
+
+  local changed = false
+  local botConfig = controlButtons.buttons[buttonId]
+  if not botConfig then
+    controlButtons.buttons[buttonId] = {
+      visible = true,
+      tooltip = buttonTooltip
+    }
+    changed = true
+  elseif botConfig.visible ~= true then
+    botConfig.visible = true
+    changed = true
+  end
+
+  local hasOrderEntry = false
+  for _, orderButtonId in pairs(controlButtons.order) do
+    if orderButtonId == buttonId then
+      hasOrderEntry = true
+      break
+    end
+  end
+
+  if not hasOrderEntry then
+    local maxOrder = 0
+    for key, _ in pairs(controlButtons.order) do
+      local index = tonumber(key)
+      if index and index > maxOrder then
+        maxOrder = index
+      end
+    end
+    controlButtons.order[tostring(maxOrder + 1)] = buttonId
+    changed = true
+  end
+
+  if changed then
+    g_settings.setNode('control_buttons', controlButtons)
+    g_settings.save()
+  end
+end
+
+local function ensureBotButtonsVisible()
+  if not botButton then
+    return
+  end
+
+  local buttonId = botButton:getId() or 'botButton'
+  ensureMainButtonVisible(botButton, buttonId, tr('vBot'))
+end
 
 function init()
   dofile("executor")
@@ -35,9 +96,32 @@ function init()
 
   initCallbacks()
 
-  botButton = modules.game_mainpanel.addToggleButton('botButton', tr('Bot'), '/images/options/bot', toggle, false, 99999)
+  botButton = modules.game_mainpanel.getButton('vBotQuickButton')
+  if not botButton then
+    botButton = modules.game_mainpanel.getButton('vbotLauncherButton')
+  end
+  if not botButton then
+    botButton = modules.game_mainpanel.getButton('botButton')
+  end
+
+  if not botButton then
+    botButton = modules.game_mainpanel.addToggleButton('botButton', tr('vBot'), '/images/options/button_vbot', toggle, false, 99999)
+    botButtonOwnedByGameBot = true
+  end
+
   botButton:setOn(false)
   botButton:show()
+  botButton:setTooltip(tr('vBot'))
+  botButton:setImageSource('/images/options/button_vbot')
+  botButton.onMouseRelease = function(widget, mousePos, mouseButton)
+    if widget:containsPoint(mousePos) and mouseButton ~= MouseMidButton then
+      toggle()
+      return true
+    end
+  end
+
+  ensureBotButtonsVisible()
+  scheduleEvent(ensureBotButtonsVisible, 250)
 
   botWindow = g_ui.loadUI('bot', modules.game_interface.getLeftPanel())
   botWindow:setup()
@@ -102,7 +186,9 @@ function terminate()
   editWindow:destroy()
 
   botWindow:destroy()
-  botButton:destroy()
+  if botButton and botButtonOwnedByGameBot then
+    botButton:destroy()
+  end
 end
 
 function clear()

@@ -336,16 +336,14 @@ MainWindow
       layout:
         type: verticalBox
         spacing:1
-      HiddenTextQtEdit
+      TextQtEdit
         id: textEditEmail
-        text-hidden: false
       HiddenTextQtToggleEdit
         id: textEditPassword
       HiddenTextQtToggleEdit
         id: textEditRepeatPassword
-      HiddenTextQtEdit
+      TextQtEdit
         id: textEditCharacter
-        text-hidden: false
         margin-top: 58
     Panel
       id: testToolstips

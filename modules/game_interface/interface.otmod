@@ -16,6 +16,7 @@ Module
     - game_prey
     - game_imbuing
     - game_imbuementtracker
+    - game_imbui
     - game_hotkeys
     - game_questlog
     - game_textmessage
@@ -53,5 +54,8 @@ Module
     - game_creatureinformation
     - game_rewardwall
     - game_forge
+    - game_battlepass
+    - game_buffs
+    - game_helper
   @onLoad: init()
   @onUnload: terminate()

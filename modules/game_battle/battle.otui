@@ -173,7 +173,7 @@ MiniWindow
     margin-right: 50
     font: verdana-11px-monochrome
     height: 13
-    color: #ffffffe7
+    color: #9d9d9dff
     !text: tr('Battle List')
 
   Panel

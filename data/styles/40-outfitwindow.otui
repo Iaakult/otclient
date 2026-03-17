@@ -156,6 +156,7 @@ OutfitWindow < MainWindow
         id: showFloor
         height: 22
         padding: 5
+        image-source: /images/ui/button-grey-down
 
         CheckBox
           id: check
@@ -168,6 +169,7 @@ OutfitWindow < MainWindow
         id: showOutfit
         height: 22
         padding: 5
+        image-source: /images/ui/button-grey-down
 
         CheckBox
           id: check
@@ -181,6 +183,7 @@ OutfitWindow < MainWindow
         id: showMount
         height: 22
         padding: 5
+        image-source: /images/ui/button-grey-down
 
         CheckBox
           id: check
@@ -193,6 +196,7 @@ OutfitWindow < MainWindow
         id: showFamiliar
         height: 22
         padding: 5
+        image-source: /images/ui/button-grey-down
         @onSetup: |
           if not g_game.getFeature(GamePlayerFamiliars) then
             self:hide()
@@ -409,6 +413,7 @@ OutfitWindow < MainWindow
       id: addon1
       height: 22
       padding: 5
+      image-source: /images/ui/button-grey-down
 
       CheckBox
         id: check
@@ -421,6 +426,7 @@ OutfitWindow < MainWindow
       id: addon2
       height: 22
       padding: 5
+      image-source: /images/ui/button-grey-down
 
       CheckBox
         id: check
@@ -433,6 +439,7 @@ OutfitWindow < MainWindow
       id: mount
       height: 22
       padding: 5
+      image-source: /images/ui/button-grey-down
 
       CheckBox
         id: check
@@ -456,7 +463,7 @@ OutfitWindow < MainWindow
       anchors.top: parent.top
       anchors.left: parent.left
       anchors.right: parent.right
-      image-source: /images/ui/panel_flat
+      image-source: /images/ui/background
       image-border: 1
       padding: 5
       padding-right: 15
@@ -492,6 +499,7 @@ OutfitWindow < MainWindow
           anchors.bottom: parent.bottom
           anchors.left: prev.right
           anchors.right: parent.right
+          image-source: /images/ui/button-grey-down
           text: -
       
       Panel
@@ -520,6 +528,7 @@ OutfitWindow < MainWindow
           anchors.bottom: parent.bottom
           anchors.left: prev.right
           anchors.right: parent.right
+          image-source: /images/ui/button-grey-down
       
       Panel
         id: mount
@@ -547,6 +556,7 @@ OutfitWindow < MainWindow
           anchors.bottom: parent.bottom
           anchors.left: prev.right
           anchors.right: parent.right
+          image-source: /images/ui/button-grey-down
 
       Panel
         id: familiar

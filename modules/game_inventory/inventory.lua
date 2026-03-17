@@ -223,6 +223,17 @@ local function inventoryEvent(player, slot, item, oldItem)
         end
     end
     
+    -- Weapon proficiency request for new weapon
+    if slot == InventorySlotLeft then
+        -- This logic ensures we request proficiency data when weapon is equipped
+        if modules.game_proficiency and modules.game_proficiency.updateTopBarProficiency then
+             if item and g_game.sendWeaponProficiencyAction then
+                g_game.sendWeaponProficiencyAction(0, item:getId())
+            end
+            modules.game_proficiency.updateTopBarProficiency()
+        end
+    end
+
     if modules.client_options.getOption('showExpiryInInvetory') then
         ItemsDatabase.setCharges(slotPanel.item, item)
     end

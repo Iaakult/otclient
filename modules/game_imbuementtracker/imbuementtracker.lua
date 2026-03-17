@@ -14,15 +14,36 @@ local IMBUEMENTTRACKER_FILTERS = {
     ["showNoImbuements"] = true
 }
 
+local TRACKED_SLOT_LOOKUP = {}
+for _, slot in pairs(IMBUEMENTTRACKER_SLOTS) do
+    TRACKED_SLOT_LOOKUP[slot] = true
+end
+
+local filtersCache = nil
+local trackedWidgetsBySlot = {}
+
 imbuementTrackerButton = nil
 imbuementTrackerMenuButton = nil
 
 function loadFilters()
-    local settings = g_settings.getNode("ImbuementTracker")
-    if not settings or not settings['filters'] then
-        return IMBUEMENTTRACKER_FILTERS
+    if filtersCache then
+        return filtersCache
     end
-    return settings['filters']
+
+    local settings = g_settings.getNode('ImbuementTracker')
+    local storedFilters = settings and settings['filters'] or nil
+    if not storedFilters then
+        filtersCache = table.copy(IMBUEMENTTRACKER_FILTERS)
+        return filtersCache
+    end
+
+    filtersCache = table.copy(IMBUEMENTTRACKER_FILTERS)
+    for filter, value in pairs(storedFilters) do
+        if filtersCache[filter] ~= nil then
+            filtersCache[filter] = value
+        end
+    end
+    return filtersCache
 end
 
 function saveFilters()
@@ -30,7 +51,8 @@ function saveFilters()
 end
 
 function getFilter(filter)
-    return loadFilters()[filter] or false
+    local filters = loadFilters()
+    return filters[filter] or false
 end
 
 function setFilter(filter)
@@ -41,7 +63,7 @@ function setFilter(filter)
     end
     
     filters[filter] = not value
-    g_settings.mergeNode('ImbuementTracker', { ['filters'] = filters })    
+    g_settings.mergeNode('ImbuementTracker', { ['filters'] = filters })
     g_game.imbuementDurations(imbuementTrackerButton:isOn())
 end
 
@@ -140,6 +162,8 @@ function terminate()
         imbuementTrackerButton:destroy()
         imbuementTrackerButton = nil
     end
+    filtersCache = nil
+    trackedWidgetsBySlot = {}
     imbuementTracker:destroy()
 end
 
@@ -166,7 +190,7 @@ end
 local function getTrackedItems(items)
     local trackedItems = {}
     for _, item in ipairs(items) do
-        if table.contains(IMBUEMENTTRACKER_SLOTS, item['slot']) then
+        if TRACKED_SLOT_LOOKUP[item['slot']] then
             trackedItems[#trackedItems + 1] = item
         end
     end
@@ -196,69 +220,172 @@ local function setDuration(label, duration)
     label:setVisible(true)
 end
 
-local function addTrackedItem(item)
-    local trackedItem = g_ui.createWidget('InventoryItem')
-    trackedItem.item:setItem(item['item'])
-    ItemsDatabase.setTier(trackedItem.item, trackedItem.item:getItem())
-    trackedItem.item:setVirtual(true)
-    local maxDuration = 0
-    
-    -- Create a table to track which slots are active
-    local activeSlots = {}
-    for _, imbuementSlot in ipairs(item['slots']) do
-        activeSlots[imbuementSlot['id']] = imbuementSlot
+local function getItemKey(item)
+    if not item then
+        return 'nil'
     end
-    
-    -- Add slots (both active and inactive) based on totalSlots
+
+    local itemId = item.getId and item:getId() or 0
+    local itemCount = item.getCountOrSubType and item:getCountOrSubType() or (item.getCount and item:getCount() or 0)
+    local itemTier = item.getTier and item:getTier() or 0
+    return string.format('%s:%s:%s', itemId, itemCount, itemTier)
+end
+
+local function getActiveSlotsMap(itemSlots)
+    local activeSlots = {}
+    for _, imbuementSlot in pairs(itemSlots or {}) do
+        if type(imbuementSlot) == 'table' and imbuementSlot['id'] ~= nil then
+            activeSlots[imbuementSlot['id']] = imbuementSlot
+        end
+    end
+    return activeSlots
+end
+
+local function getMaxDuration(activeSlots)
+    local maxDuration = 0
+    for _, imbuementSlot in pairs(activeSlots) do
+        local duration = imbuementSlot['duration'] or 0
+        if duration > maxDuration then
+            maxDuration = duration
+        end
+    end
+    return maxDuration
+end
+
+local function shouldShowItem(item, activeSlots, maxDuration)
+    local hasActiveImbuements = next(activeSlots) ~= nil and maxDuration > 0
+    local hasSlots = (item['totalSlots'] or 0) > 0
+
+    if not hasActiveImbuements and hasSlots and not getFilter('showNoImbuements') then
+        return false
+    end
+
+    if not hasActiveImbuements and not hasSlots then
+        return false
+    end
+
+    if maxDuration > 0 and maxDuration < 3600 and not getFilter('showLessThan1h') then
+        return false
+    end
+
+    if maxDuration >= 3600 and maxDuration < 10800 and not getFilter('showBetween1hAnd3h') then
+        return false
+    end
+
+    if maxDuration >= 10800 and not getFilter('showMoreThan3h') then
+        return false
+    end
+
+    return true
+end
+
+local function ensureTrackedItemWidget(slot)
+    local trackedItem = trackedWidgetsBySlot[slot]
+    if trackedItem then
+        return trackedItem
+    end
+
+    trackedItem = g_ui.createWidget('InventoryItem', imbuementTracker.contentsPanel)
+    trackedItem:setId('trackedItem' .. slot)
+    trackedItem.item:setVirtual(true)
+    trackedItem.itemKey = nil
+    trackedItem.renderKey = nil
+    trackedWidgetsBySlot[slot] = trackedItem
+    return trackedItem
+end
+
+local function buildRenderKey(item, activeSlots)
+    local renderKey = {
+        getItemKey(item['item']),
+        tostring(item['totalSlots'] or 0)
+    }
+
     local totalSlots = item['totalSlots'] or 0
     for slotIndex = 0, totalSlots - 1 do
         local imbuementSlot = activeSlots[slotIndex]
         if imbuementSlot then
-            -- Active slot with imbuement
-            local slot = g_ui.createWidget('ImbuementSlot')
-            slot:setId('slot' .. imbuementSlot['id'])
-            slot:setImageSource('/images/game/imbuing/icons/' .. imbuementSlot['iconId'])
-            slot:setMarginLeft(3)
-            setDuration(slot.duration, imbuementSlot['duration'])
-            trackedItem.imbuementSlots:addChild(slot)
-            if imbuementSlot['duration'] > maxDuration then
-                maxDuration = imbuementSlot['duration']
-            end
+            renderKey[#renderKey + 1] = string.format('%d:%d:%d:%d', slotIndex, imbuementSlot['iconId'] or 0, imbuementSlot['duration'] or 0, imbuementSlot['state'] and 1 or 0)
         else
-            -- Inactive slot placeholder
-            local inactiveSlot = g_ui.createWidget('ImbuementSlotInactive')
-            inactiveSlot:setId('inactiveSlot' .. slotIndex)
-            inactiveSlot:setMarginLeft(3)
-            trackedItem.imbuementSlots:addChild(inactiveSlot)
+            renderKey[#renderKey + 1] = string.format('%d:0:0:0', slotIndex)
         end
     end
-    
-    return trackedItem, maxDuration
+
+    return table.concat(renderKey, '|')
+end
+
+local function updateTrackedItemWidget(trackedItem, item, activeSlots)
+    local itemKey = getItemKey(item['item'])
+    if trackedItem.itemKey ~= itemKey then
+        trackedItem.item:setItem(item['item'])
+        ItemsDatabase.setTier(trackedItem.item, trackedItem.item:getItem())
+        trackedItem.item:setVirtual(true)
+        trackedItem.itemKey = itemKey
+    end
+
+    local totalSlots = item['totalSlots'] or 0
+    local slotsPanel = trackedItem.imbuementSlots
+
+    for i = slotsPanel:getChildCount(), 1, -1 do
+        local child = slotsPanel:getChildByIndex(i)
+        local childId = child:getId() or ''
+        local childSlot = tonumber(childId:match('^slot(%d+)$'))
+        if childSlot == nil or childSlot >= totalSlots then
+            child:destroy()
+        end
+    end
+
+    for slotIndex = 0, totalSlots - 1 do
+        local slotWidget = slotsPanel:getChildById('slot' .. slotIndex)
+        if not slotWidget then
+            slotWidget = g_ui.createWidget('ImbuementSlot', slotsPanel)
+            slotWidget:setId('slot' .. slotIndex)
+            slotWidget:setMarginLeft(3)
+        end
+
+        local imbuementSlot = activeSlots[slotIndex]
+        if imbuementSlot then
+            slotWidget:setImageSource('/images/game/imbuing/icons/' .. imbuementSlot['iconId'])
+            setDuration(slotWidget.duration, imbuementSlot['duration'])
+        else
+            slotWidget:setImageSource('/images/game/imbuing/slot_inactive')
+            slotWidget.duration:setVisible(false)
+        end
+    end
 end
 
 function onUpdateImbuementTracker(items)
-    imbuementTracker.contentsPanel:destroyChildren()
-    for _, item in ipairs(getTrackedItems(items)) do
-        local trackedItem, duration = addTrackedItem(item)
-        local show = true
-        local hasActiveImbuements = #item['slots'] > 0 and duration > 0
-        local hasSlots = (item['totalSlots'] or 0) > 0
-        
-        -- Show items based on filters
-        if not hasActiveImbuements and hasSlots and not getFilter('showNoImbuements') then
-            -- Item has slots but no active imbuements, check showNoImbuements filter
-            show = false
-        elseif not hasActiveImbuements and not hasSlots then
-            -- Item has no slots at all, don't show it
-            show = false
-        elseif duration > 0 and duration < 3600 and not getFilter('showLessThan1h') then
-            show = false
-        elseif duration >= 3600 and duration < 10800 and not getFilter('showBetween1hAnd3h') then
-            show = false
-        elseif duration >= 10800 and not getFilter('showMoreThan3h') then
-            show = false
+    local trackedItems = getTrackedItems(items)
+    table.sort(trackedItems, function(a, b)
+        return (a['slot'] or 0) < (b['slot'] or 0)
+    end)
+
+    local seenSlots = {}
+    local orderIndex = 1
+    for _, item in ipairs(trackedItems) do
+        local slot = item['slot']
+        seenSlots[slot] = true
+
+        local activeSlots = getActiveSlotsMap(item['slots'])
+        local maxDuration = getMaxDuration(activeSlots)
+        local show = shouldShowItem(item, activeSlots, maxDuration)
+
+        local trackedItem = ensureTrackedItemWidget(slot)
+        local renderKey = buildRenderKey(item, activeSlots)
+        if trackedItem.renderKey ~= renderKey then
+            updateTrackedItemWidget(trackedItem, item, activeSlots)
+            trackedItem.renderKey = renderKey
         end
-        if show then imbuementTracker.contentsPanel:addChild(trackedItem) end
+
+        trackedItem:setVisible(show)
+        imbuementTracker.contentsPanel:moveChildToIndex(trackedItem, orderIndex)
+        orderIndex = orderIndex + 1
+    end
+
+    for slot, trackedItem in pairs(trackedWidgetsBySlot) do
+        if not seenSlots[slot] then
+            trackedItem:destroy()
+            trackedWidgetsBySlot[slot] = nil
+        end
     end
 end
 
@@ -273,6 +400,6 @@ end
 
 function onGameEnd()
     imbuementTracker.contentsPanel:destroyChildren()
+    trackedWidgetsBySlot = {}
     saveFilters()
 end
-

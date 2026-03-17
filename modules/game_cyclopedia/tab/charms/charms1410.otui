@@ -85,13 +85,13 @@ UIWidget
           image-source: /game_cyclopedia/images/monster-icon-bonuspoints
 
       QtButton
-        id: check
+        id: ClearCharmButton
         anchors.top: prev.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        text: Addon 1
-        margin-top:3
         text: Clear Charm
+        margin-top: 3
+        @onClick: modules.game_cyclopedia.Cyclopedia.actionClearCharmButton(self)
 
 
       UIWidget
@@ -197,14 +197,16 @@ UIWidget
     margin-left: 5
 
     QtButton
+      id: ResetAllCharmsButton
       text: Reset all charms
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      margin-top: -15
+      margin-top: -10
+      @onClick: modules.game_cyclopedia.Cyclopedia.actionResetAllCharmsButton(self)
 
     UIWidget
-      id: CharmsBase1410
+      id: ResetAllCharmsCost
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
@@ -212,16 +214,16 @@ UIWidget
       image-border: 10
       margin-top: 15
       size: 100 20
-      !tooltip: tr("Minor Charm echoes\nEarned by unlocking or upgrading major charm and promotion your character")
+      !tooltip: tr("Cost to reset all charms")
       UIWidget
-        id: Icon
+        id: GoldIcon
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         margin-right: 4
         image-source: /game_cyclopedia/images/icon_gold
       Label
         id: Value
-        anchors.right: Icon.left
+        anchors.right: GoldIcon.left
         anchors.verticalCenter: parent.verticalCenter
         margin-right: 4
         !text: tr('0')
