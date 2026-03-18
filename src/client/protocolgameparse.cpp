@@ -1495,12 +1495,14 @@ void ProtocolGame::parseTileRemoveThing(const InputMessagePtr& msg) const
 {
     const auto& thing = getMappedThing(msg);
     if (!thing) {
-        g_logger.traceError("ProtocolGame::parseTileRemoveThing: no thing");
+        g_logger.warning("ProtocolGame::parseTileRemoveThing: thing not found, client may be out of sync with server");
+        // Desync detected - could trigger map refresh here if needed
+        // For now, just log and continue
         return;
     }
 
     if (!g_map.removeThing(thing))
-        g_logger.traceError("ProtocolGame::parseTileRemoveThing: unable to remove thing");
+        g_logger.warning("ProtocolGame::parseTileRemoveThing: unable to remove thing from map");
 }
 
 void ProtocolGame::parseCreatureMove(const InputMessagePtr& msg)
@@ -1509,19 +1511,23 @@ void ProtocolGame::parseCreatureMove(const InputMessagePtr& msg)
     const auto& newPos = getPosition(msg);
 
     if (!thing || !thing->isCreature()) {
-        g_logger.traceError("ProtocolGame::parseCreatureMove: no creature found to move");
+        g_logger.warning("ProtocolGame::parseCreatureMove: creature not found at expected position, possible server-client desync");
+        // Desync detected - creature expected but not found
+        // Client should request map refresh to resync with server
         return;
     }
 
     if (!g_map.removeThing(thing)) {
-        g_logger.traceError("ProtocolGame::parseCreatureMove: unable to remove creature");
+        g_logger.warning("ProtocolGame::parseCreatureMove: unable to remove creature from map");
         return;
     }
 
     const auto& creature = thing->static_self_cast<Creature>();
     creature->allowAppearWalk();
 
-    g_map.addThing(thing, newPos, -1);
+    if (!g_map.addThing(thing, newPos, -1)) {
+        g_logger.warning("ProtocolGame::parseCreatureMove: unable to add creature at new position {}", newPos);
+    }
 }
 
 void ProtocolGame::parseOpenContainer(const InputMessagePtr& msg)
