@@ -1525,9 +1525,7 @@ void ProtocolGame::parseCreatureMove(const InputMessagePtr& msg)
     const auto& creature = thing->static_self_cast<Creature>();
     creature->allowAppearWalk();
 
-    if (!g_map.addThing(thing, newPos, -1)) {
-        g_logger.warning("ProtocolGame::parseCreatureMove: unable to add creature at new position {}", newPos);
-    }
+    g_map.addThing(thing, newPos, -1);
 }
 
 void ProtocolGame::parseOpenContainer(const InputMessagePtr& msg)
