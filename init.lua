@@ -3,7 +3,7 @@
 
 -- updater
 Services = {
-    --updater = "http://play.otbaiak.com/api/updater.php", --./updater
+    updater = "http://play.otbaiak.com/api/updater.php", --./updater
     status = "https://play.otbaiak.com/login.php", --./client_entergame | ./client_topmenu
     websites = "https://play.otbaiak.com/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
     createAccount = "https://play.otbaiak.com/?account/create", --./client_entergame -- createAccount.lua
@@ -62,7 +62,7 @@ if ENABLE_SERVERS then
         -- @field httpLogin Enables HTTP-based login on the server
         -- @field useAuthenticator Enables additional authentication layer
         --
-        ["http://127.0.0.1/login.php"] = {
+        ["http://play.otbaiak.com/login.php"] = {
             port = 80,
             protocol = 1511,
             httpLogin = true,
@@ -169,7 +169,7 @@ local function loadModules()
     end
 
     -- uncomment the line below so that modules are reloaded when modified. (Note: Use only mod dev)
-    g_modules.enableAutoReload()
+    -- g_modules.enableAutoReload()
 end
 
 -- run updater, must use data.zip

@@ -255,7 +255,7 @@ PhantomMiniWindow
 
       image-source: /images/ui/containerslot
       image-border: 3
-      anchors.left: changeSize.left
+      anchors.left: helmet.left
       anchors.right: backpack.right
       anchors.bottom: parent.bottom
       anchors.top: stop.top

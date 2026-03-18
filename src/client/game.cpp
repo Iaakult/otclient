@@ -1868,6 +1868,14 @@ void Game::imbuementDurations(const bool isOpen)
     m_protocolGame->sendImbuementDurations(isOpen);
 }
 
+void Game::weaponProficiencyAction(const uint8_t actionType, const uint16_t itemId)
+{
+    if (!canPerformGameAction())
+        return;
+
+    m_protocolGame->sendWeaponProficiencyAction(actionType, itemId);
+}
+
 void Game::openWheelOfDestiny(uint32_t playerId)
 {
     if (!playerId || !canPerformGameAction())

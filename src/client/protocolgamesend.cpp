@@ -1578,6 +1578,17 @@ void ProtocolGame::sendImbuementDurations(const bool isOpen)
     send(msg);
 }
 
+void ProtocolGame::sendWeaponProficiencyAction(const uint8_t actionType, const uint16_t itemId)
+{
+    // actionType: 0 = request info for specific item, 1 = request all weapons
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientWeaponProficiencyAction);
+    msg->addU8(actionType);
+    if (actionType == 0)
+        msg->addU16(itemId);
+    send(msg);
+}
+
 void ProtocolGame::sendOpenWheelOfDestiny(uint32_t playerId)
 {
     const auto& msg = std::make_shared<OutputMessage>();
