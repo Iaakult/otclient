@@ -1496,8 +1496,8 @@ void ProtocolGame::parseTileRemoveThing(const InputMessagePtr& msg) const
     const auto& thing = getMappedThing(msg);
     if (!thing) {
         g_logger.warning("ProtocolGame::parseTileRemoveThing: thing not found, client may be out of sync with server");
-        // Desync detected - could trigger map refresh here if needed
-        // For now, just log and continue
+        // Desync detected - request map resync from server
+        const_cast<ProtocolGame*>(this)->sendResyncRequest();
         return;
     }
 
@@ -1512,8 +1512,8 @@ void ProtocolGame::parseCreatureMove(const InputMessagePtr& msg)
 
     if (!thing || !thing->isCreature()) {
         g_logger.warning("ProtocolGame::parseCreatureMove: creature not found at expected position, possible server-client desync");
-        // Desync detected - creature expected but not found
-        // Client should request map refresh to resync with server
+        // Desync detected - request map resync from server
+        const_cast<ProtocolGame*>(this)->sendResyncRequest();
         return;
     }
 

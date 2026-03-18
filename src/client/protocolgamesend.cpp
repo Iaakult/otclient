@@ -43,6 +43,19 @@ void ProtocolGame::sendExtendedOpcode(const uint8_t opcode, const std::string& b
     }
 }
 
+void ProtocolGame::sendResyncRequest()
+{
+    g_logger.warning("Sending map resync request to server...");
+    // Send extended opcode 255 (reserved for resync) with empty buffer
+    if (m_enableSendExtendedOpcode) {
+        const auto& msg = std::make_shared<OutputMessage>();
+        msg->addU8(Proto::ClientExtendedOpcode);
+        msg->addU8(255);  // Reserved opcode for resync
+        msg->addString("");  // Empty buffer
+        send(msg);
+    }
+}
+
 void ProtocolGame::sendLoginPacket(const uint32_t challengeTimestamp, const uint8_t challengeRandom)
 {
     const auto& msg = std::make_shared<OutputMessage>();
