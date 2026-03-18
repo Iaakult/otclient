@@ -1876,6 +1876,14 @@ void Game::weaponProficiencyAction(const uint8_t actionType, const uint16_t item
     m_protocolGame->sendWeaponProficiencyAction(actionType, itemId);
 }
 
+void Game::weaponProficiencyApply(const uint16_t itemId, const std::vector<uint8_t>& levels, const std::vector<uint8_t>& perkPositions)
+{
+    if (!canPerformGameAction())
+        return;
+
+    m_protocolGame->sendWeaponProficiencyApply(itemId, levels, perkPositions);
+}
+
 void Game::openWheelOfDestiny(uint32_t playerId)
 {
     if (!playerId || !canPerformGameAction())

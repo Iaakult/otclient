@@ -1589,6 +1589,22 @@ void ProtocolGame::sendWeaponProficiencyAction(const uint8_t actionType, const u
     send(msg);
 }
 
+void ProtocolGame::sendWeaponProficiencyApply(const uint16_t itemId, const std::vector<uint8_t>& levels, const std::vector<uint8_t>& perkPositions)
+{
+    // WEAPON_PROFICIENCY_APPLY_PERKS = 3
+    const auto count = static_cast<uint8_t>(std::min(levels.size(), perkPositions.size()));
+    const auto& msg = std::make_shared<OutputMessage>();
+    msg->addU8(Proto::ClientWeaponProficiencyAction);
+    msg->addU8(3); // WEAPON_PROFICIENCY_APPLY_PERKS
+    msg->addU16(itemId);
+    msg->addU8(count);
+    for (uint8_t i = 0; i < count; ++i) {
+        msg->addU8(levels[i]);
+        msg->addU8(perkPositions[i]);
+    }
+    send(msg);
+}
+
 void ProtocolGame::sendOpenWheelOfDestiny(uint32_t playerId)
 {
     const auto& msg = std::make_shared<OutputMessage>();

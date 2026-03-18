@@ -386,6 +386,7 @@ void Client::registerLuaFunctions()
     g_lua.bindSingletonFunction("g_game", "requestHighscore", &Game::requestHighscore, &g_game);
     g_lua.bindSingletonFunction("g_game", "imbuementDurations", &Game::imbuementDurations, &g_game);
     g_lua.bindSingletonFunction("g_game", "sendWeaponProficiencyAction", &Game::weaponProficiencyAction, &g_game);
+    g_lua.bindSingletonFunction("g_game", "sendWeaponProficiencyApply", &Game::weaponProficiencyApply, &g_game);
     g_lua.bindSingletonFunction("g_game", "openWheelOfDestiny", &Game::openWheelOfDestiny, &g_game);
     g_lua.bindSingletonFunction("g_game", "applyWheelOfDestiny", &Game::applyWheelOfDestiny, &g_game);
     g_lua.bindSingletonFunction("g_game", "requestBless", &Game::requestBless, &g_game);
