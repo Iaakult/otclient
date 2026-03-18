@@ -23,6 +23,7 @@
 #include "resourcemanager.h"
 
 #include <physfs.h>
+#include <fstream>
 
 #include "filestream.h"
 #include "graphicalapplication.h"
@@ -698,25 +699,92 @@ void ResourceManager::updateExecutable(std::string fileName)
     if (!dFile)
         g_logger.fatal("Cannot find executable: {} in downloads", fileName);
 
-    const auto& oldWriteDir = getWriteDir();
-    setWriteDir(getWorkDir());
-    const std::filesystem::path path(m_binaryPath);
-    const auto newBinary = path.stem().string() + "-" + std::to_string(time(nullptr)) + path.extension().string();
-    g_logger.info("Updating binary file: {}", newBinary);
-    PHYSFS_file* file = PHYSFS_openWrite(newBinary.c_str());
-    if (!file) {
-        return g_logger.fatal(
-            "can't open {} for writing: {}",
-            newBinary,
-            PHYSFS_getErrorByCode(PHYSFS_getLastErrorCode())
+#if defined(WIN32)
+    const auto binaryPath = std::filesystem::path(m_binaryPath);
+    auto baseName = stdext::split(binaryPath.stem().string(), "-")[0];
+    if (baseName.empty()) {
+        baseName = binaryPath.stem().string();
+    }
+
+    const auto newBinaryName = baseName + "-" + std::to_string(time(nullptr)) + binaryPath.extension().string();
+    const auto newBinaryPath = binaryPath.parent_path() / newBinaryName;
+    g_logger.info("Updating binary file: {}", newBinaryPath.filename().string());
+
+    std::ofstream out(newBinaryPath, std::ios::binary | std::ios::trunc);
+    if (!out.is_open()) {
+        g_logger.fatal("Cannot open executable for writing: {}", newBinaryPath.string());
+    }
+
+    out.write(reinterpret_cast<const char*>(dFile->response.data()), static_cast<std::streamsize>(dFile->response.size()));
+    if (!out.good()) {
+        out.close();
+        std::error_code removeEc;
+        std::filesystem::remove(newBinaryPath, removeEc);
+        g_logger.fatal("Cannot write executable: {}", newBinaryPath.string());
+    }
+#else
+    const auto targetBinary = std::filesystem::path(m_binaryPath);
+    const auto tempBinary = targetBinary.parent_path() / (targetBinary.filename().string() + ".update");
+    g_logger.info("Updating binary file: {}", targetBinary.filename().string());
+
+    {
+        std::ofstream out(tempBinary, std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) {
+            g_logger.fatal("Cannot open temporary executable for writing: {}", tempBinary.string());
+        }
+
+        out.write(reinterpret_cast<const char*>(dFile->response.data()), static_cast<std::streamsize>(dFile->response.size()));
+        if (!out.good()) {
+            out.close();
+            std::error_code removeEc;
+            std::filesystem::remove(tempBinary, removeEc);
+            g_logger.fatal("Cannot write temporary executable: {}", tempBinary.string());
+        }
+    }
+
+    std::error_code ec;
+    const auto sourcePerms = std::filesystem::status(targetBinary, ec).permissions();
+    if (!ec) {
+        std::filesystem::permissions(tempBinary, sourcePerms, ec);
+    } else {
+        ec.clear();
+        std::filesystem::permissions(
+            tempBinary,
+            std::filesystem::perms::owner_all |
+                std::filesystem::perms::group_read |
+                std::filesystem::perms::group_exec |
+                std::filesystem::perms::others_read |
+                std::filesystem::perms::others_exec,
+            ec
         );
     }
 
-    PHYSFS_writeBytes(file, dFile->response.data(), dFile->response.size());
-    PHYSFS_close(file);
-    setWriteDir(oldWriteDir);
+    if (ec) {
+        std::error_code removeEc;
+        std::filesystem::remove(tempBinary, removeEc);
+        g_logger.fatal("Cannot set executable permissions on {}: {}", tempBinary.string(), ec.message());
+    }
 
-    std::filesystem::path newBinaryPath(std::filesystem::u8path(PHYSFS_getWriteDir()));
+    std::error_code renameEc;
+    std::filesystem::rename(tempBinary, targetBinary, renameEc);
+    if (renameEc) {
+        std::error_code removeEc;
+        std::filesystem::remove(targetBinary, removeEc);
+        renameEc.clear();
+        std::filesystem::rename(tempBinary, targetBinary, renameEc);
+    }
+
+    if (renameEc) {
+        std::error_code removeTempEc;
+        std::filesystem::remove(tempBinary, removeTempEc);
+        g_logger.fatal(
+            "Cannot replace executable '{}' with temporary '{}': {}",
+            targetBinary.string(),
+            tempBinary.string(),
+            renameEc.message()
+        );
+    }
+#endif
 #endif
 }
 
